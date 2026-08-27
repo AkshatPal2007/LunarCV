@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment
+.venv/
+
+# Large data
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Outputs
+outputs/*
+!outputs/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/settings.json

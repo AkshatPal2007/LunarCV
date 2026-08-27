@@ -1,0 +1,18 @@
+[project]
+name = "lunarcv"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.11.1",
+    "numpy>=2.4.6",
+    "opencv-contrib-python>=5.0.0.93",
+    "pandas>=3.0.5",
+    "pyproj>=3.7.2",
+    "pyyaml>=6.0.3",
+    "rasterio>=1.4.4",
+    "scikit-image>=0.26.0",
+    "scipy>=1.17.1",
+    "tqdm>=4.70.0",
+]
