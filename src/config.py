@@ -33,6 +33,11 @@ FIGURES_DIR = OUTPUT_DIR / "figures"
 
 # Processed data: per-sensor subdirectories
 TMC2_PROCESSED_DIR = PROCESSED_DIR / "tmc2"
+LRO_PROCESSED_DIR  = PROCESSED_DIR / "lro"
+
+# LRO product directory & image path
+LRO_DIR = RAW_DIR / "lro"
+LRO_IMG_PATH = LRO_DIR / "M1529041271LE.IMG"
 
 # Image properties from metadata
 TMC2_SHAPE = (148108, 4000)
@@ -40,4 +45,5 @@ TMC2_DTYPE = "uint16"
 
 # Create required output directories on import
 TMC2_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+LRO_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
