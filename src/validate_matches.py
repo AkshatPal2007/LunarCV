@@ -18,7 +18,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from config import TMC2_PROCESSED_DIR, LRO_PROCESSED_DIR, FIGURES_DIR
+from config import OHRC_PROCESSED_DIR, LRO_PROCESSED_DIR, FIGURES_DIR
 from io_utils import load_tmc2_memmap, load_lro_nac_memmap, extract_patch
 from preprocessing import normalize_uint16_to_uint8, apply_clahe
 from matching import LoFTRMatcher

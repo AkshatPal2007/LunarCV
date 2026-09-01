@@ -6,65 +6,77 @@
 [![OpenCV](https://img.shields.io/badge/OpenCV-5.0+-red.svg)](https://opencv.org/)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
-**LunarCV** is an illumination-robust, cross-sensor feature matching and sub-pixel image registration framework for planetary orbital data. It is specifically designed to register heterogeneous lunar datasets across different space agencies — namely **ISRO Chandrayaan-2 TMC-2** (Terrain Mapping Camera-2) and **NASA LRO NAC** (Lunar Reconnaissance Orbiter Narrow Angle Camera).
+**LunarCV** is an illumination-robust, cross-sensor feature matching and sub-pixel image registration framework for planetary orbital data. It registers heterogeneous lunar datasets across different space missions — primarily **ISRO Chandrayaan-2 (OHRC / TMC-2)** and **NASA LRO NAC** (Lunar Reconnaissance Orbiter Narrow Angle Camera).
 
 ---
 
-## 🎯 The Scientific Problem
+## 🎯 The Scientific Problem & Benchmark Context
 
 Cross-sensor image registration on planetary bodies presents severe challenges that break traditional feature matchers (SIFT, SURF, ORB):
 
-1. **Extreme Resolution (GSD) Gap**: Chandrayaan-2 TMC-2 operates at **~5.0 m/px**, whereas LRO NAC operates at **~0.5 m/px** — a **10× spatial scale discrepancy**.
-2. **Illumination & Shadow Variations**: Orbiting spacecraft capture terrain under drastically different solar incidence, emission, and azimuth angles, causing crater rims and shadows to flip direction.
+1. **Extreme Resolution (GSD) Gap**: Chandrayaan-2 OHRC operates at **0.26 m/px**, whereas LRO NAC operates at **~1.60 m/px** (summed mode) — a **~6.15× spatial scale discrepancy**.
+2. **Illumination & Shadow Variations**: Orbiting spacecraft capture terrain under drastically different solar incidence, emission, and azimuth angles, causing crater rims and shadows to cast in opposite directions.
 3. **Low-Texture Regolith**: High-latitude and equatorial lunar regolith often exhibit low contrast and diffuse scattering.
-4. **Large Data Volume**: Planetary images span gigabytes ($148,108 \times 4,000$ pixels for TMC-2 strips), requiring zero-copy streaming memory architectures.
+4. **Large Data Volume**: Planetary images span gigabytes ($90,148 \times 12,000$ pixels for OHRC strips), requiring zero-copy streaming memory architectures.
+
+### 🏆 Benchmark Reference to Beat
+Our baseline is directly aligned with the published experiment by **Makharia et al.** (*ISRO SAC + Manipal University Jaipur*, IEEE InGARSS-adjacent benchmark):
+* **Target Dataset Pair**: **OHRC-NAC Equatorial**
+* **Published SuperGlue Benchmark RMSE**: **0.62 / 0.57 pixels**
 
 ---
 
-## 🏗️ Pipeline Architecture & Methodology
+## 🛰️ Verified Baseline Datasets
+
+Both datasets have been verified for **100% geographic overlap** in the lunar equatorial region:
+
+| Attribute | Source Image: Chandrayaan-2 OHRC | Reference Image: NASA LRO NAC |
+| :--- | :--- | :--- |
+| **Product ID** | `ch2_ohr_ncp_20210401T2357376656_d_img_d18` | `M1350459544RE.IMG` |
+| **Instrument** | Orbiter High Resolution Camera (OHRC) | Narrow Angle Camera - Right (NAC-R) |
+| **GSD (Resolution)** | **0.26 m/pixel** | **1.60 m/pixel** (1.55m × 1.66m) |
+| **Dimensions** | **90,148 lines × 12,000 samples** (1.08 GB) | **52,224 lines × 2,532 samples** (132 MB) |
+| **Data Format** | PDS4 UnsignedByte (`uint8`, offset 0) | PDS3 UnsignedByte (`uint8`, offset 5064) |
+| **Latitude Range** | **-13.889° to -13.055°** | **-15.88° to -13.00°** |
+| **Longitude Range** | **25.128° to 25.246°** | **25.08° to 25.41°** |
+| **Overlap Status** | **100% of OHRC strip lies within the northern corridor of LRO NAC** | Contains entire OHRC coverage |
+
+---
+
+## 🏗️ Pipeline Architecture (CLAUDE.md v2)
 
 ```
-+-----------------------------------------------------------------------------------+
-| 1. Binary Ingestion & Zero-Copy Streaming                                         |
-|    - Memory-map raw binary PDS .IMG files (np.memmap) without RAM loading         |
-|    - Parse PDS3 ASCII headers (RECORD_BYTES, LINES, SAMPLES, offsets)             |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼
-+-----------------------------------------------------------------------------------+
-| 2. Preprocessing & Contrast Stretching                                            |
-|    - Percentile-based stretching: uint16 [2%, 98%] percentile clip -> uint8       |
-|    - Contrast-Limited Adaptive Histogram Equalization (OpenCV CLAHE)              |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼
-+-----------------------------------------------------------------------------------+
-| 3. Scale-Matching & Aspect Ratio Alignment                                        |
-|    - Downsample LRO NAC by 10x (INTER_AREA) to align GSD (~5.0 m/px)              |
-|    - Match aspect ratio & resize for transformer VRAM budgeting                   |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼
-+-----------------------------------------------------------------------------------+
-| 4. Detector-Free Feature Matching                                                 |
-|    - Kornia LoFTR (Local Feature TRansformer) outdoor pretrained model             |
-|    - Dense cross-attention feature extraction on GPU                              |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼
-+-----------------------------------------------------------------------------------+
-| 5. Geometric Outlier Rejection                                                    |
-|    - OpenCV MAGSAC++ (cv2.USAC_MAGSAC) with reprojection threshold tau = 5.0 px   |
-|    - Directionally verified Homography H mapping LRO NAC -> TMC-2                 |
-+-----------------------------------------------------------------------------------+
-                                         │
-                                         ▼
-+-----------------------------------------------------------------------------------+
-| 6. 9-Metric Rigorous Verification & Warped Overlay Suite                          |
-|    - Compute Forward/Backward RMSE, Symmetric Error, 5-Fold Cross Validation      |
-|    - Evaluate 4x4 Grid Occupancy & Spatial Convex Hull Area                       |
-|    - Generate 4-panel visual alignment (TMC-2, Warped LRO, Alpha Blend, Checker)  |
-+-----------------------------------------------------------------------------------+
+REAL Chandrayaan-2 OHRC (source)         REAL NASA LRO NAC (reference)
+        │                                             │
+        ▼                                             ▼
+  Metadata Extraction                           Metadata Extraction
+  (GSD=0.26m, footprint, coords)               (GSD=1.60m, footprint, coords)
+        └───────────────────────┬─────────────────────┘
+                                ▼
+                     Coarse Geographic Prior
+                (scale ratio = 1.60 / 0.26 = 6.15x,
+                 crop reference to candidate region)
+                                │
+        ┌───────────────────────┴───────────────────────┐
+        ▼                                               ▼
+  Minimal Normalization Only                      Minimal Normalization Only
+  (percentile-stretch to uint8;                   (same, on cropped reference)
+   NO CLAHE/inversion by default)
+        └───────────────────────┬───────────────────────┘
+                                ▼
+                  Scale-Aligned Learned Matching
+                  (LoFTR / LightGlue on GPU)
+                                │
+                                ▼
+                    MAGSAC++ Outlier Rejection
+                      (cv2.USAC_MAGSAC, tau=4.0px)
+                                │
+                                ▼
+                Rigorous Evaluation & Verification
+          (RMSE, Inlier Ratio, Match Count, Grid Occupancy)
+                                │
+                                ▼
+                       Registered Product
 ```
 
 ---
@@ -74,98 +86,69 @@ Cross-sensor image registration on planetary bodies presents severe challenges t
 ```
 LunarCV/
 ├── README.md                           # Comprehensive documentation & workflow guide
+├── CLAUDE.md                           # Core project roadmap & scientific source of truth
 ├── pyproject.toml                      # Dependencies & package manifest
 ├── data/
 │   ├── metadata/                       # Geographic footprint JSON metadata
-│   │   └── tmc2_patch_bbox.json        # Latitude/Longitude bounds of TMC-2 patch
 │   ├── raw/
-│   │   ├── tmc2/                       # Raw Chandrayaan-2 TMC-2 binary product (.IMG)
-│   │   └── lro/                        # Raw LRO NAC PDS binary product (.IMG)
+│   │   ├── tmc2/baseline/              # Chandrayaan-2 OHRC baseline product (.IMG, .XML, .CSV)
+│   │   └── lro/                        # NASA LRO NAC baseline product (M1350459544RE.IMG)
 │   └── processed/                      # Preprocessed arrays (.npy) and match points
-│       ├── tmc2/                       # Processed TMC-2 patches (.npy)
-│       ├── lro/                        # Scale-matched LRO NAC patches (.npy)
-│       └── matches/                    # Homography matrices and inlier keypoints (.npy)
 ├── outputs/
-│   └── figures/                        # Generated 4-panel visual alignment overlays
+│   └── figures/                        # Generated visual overlays & diagnostic plots
 └── src/
-    ├── config.py                       # Global directory paths and sensor shape specifications
-    ├── io_utils.py                     # PDS label parser & zero-copy memmap loaders
+    ├── config.py                       # Central path, sensor GSD, and shape configurations
+    ├── io_utils.py                     # Zero-copy memory mapping for OHRC, TMC-2, and LRO NAC
     ├── preprocessing.py                # Percentile normalization, CLAHE & Matplotlib helpers
-    ├── matching.py                     # LoFTR wrapper with automatic VRAM scaling
-    ├── outlier_rejection.py            # MAGSAC++ geometric outlier rejection
-    ├── validate_matches.py             # 4-panel visual alignment suite & perspective warping
+    ├── matching.py                     # LoFTR matcher wrapper with VRAM budgeting
+    ├── outlier_rejection.py            # MAGSAC++ geometric outlier filtering
+    ├── validate_matches.py             # 4-panel visual alignment & perspective warping
     ├── transform_audit.py              # Per-inlier residual audit & synthetic unit tests
     ├── constrained_matching_pass.py    # 2nd-pass pre-aligned matching & 9-metric evaluator
-    └── main_phase3.py                  # End-to-end baseline pipeline runner
+    ├── test_new_baseline.py            # Quick verification of OHRC <-> LRO NAC ingestion
+    └── main_baseline_ohrc_lro.py       # Primary baseline execution on OHRC <-> LRO NAC RE
 ```
 
 ---
 
-## 🔬 Core Source Modules Explained
+## ⚡ Quickstart Commands
 
-| Module | Description & Primary Functionality |
-| :--- | :--- |
-| **`config.py`** | Central configuration file defining project paths (`DATA_DIR`, `OUTPUT_DIR`), sensor dimensions (`148108 × 4000` for TMC-2), and automatic directory creation on import. |
-| **`io_utils.py`** | Implements zero-copy memory mapping (`load_tmc2_memmap`, `load_lro_nac_memmap`) and PDS3 ASCII label parsing (`parse_lro_pds_header`) to calculate byte offsets. |
-| **`preprocessing.py`** | Houses `normalize_uint16_to_uint8()` for percentile clipping, `apply_clahe()` for contrast enhancement, and matplotlib figure export utilities. |
-| **`matching.py`** | Wraps Kornia's detector-free `LoFTR` model (`outdoor` weights). Implements automatic dimension scaling (`max_dim=1024`) to prevent PyTorch CUDA Out-Of-Memory (OOM) errors on 8GB GPUs, automatically scaling keypoints back to original space. |
-| **`outlier_rejection.py`** | Applies OpenCV MAGSAC++ (`cv2.findHomography` with `cv2.USAC_MAGSAC`) to filter false correspondences and fit a directionally verified Homography $H$ mapping LRO NAC $\to$ TMC-2. |
-| **`validate_matches.py`** | Computes forward/backward reprojection errors, performs perspective warping (`cv2.warpPerspective`), and exports a 4-panel visual validation suite (TMC-2, Warped LRO, 50/50 Alpha Blend, 150px Checkerboard). |
-| **`transform_audit.py`** | Contains synthetic unit tests ($< 10^{-4}\text{ px}$ error verification) and prints per-inlier residual error tables using `cv2.perspectiveTransform` to verify mathematical logic. |
-| **`constrained_matching_pass.py`** | Executes 2nd-pass pre-aligned matching and evaluates the complete **9-metric registration report** (including 5-fold cross validation and $4 \times 4$ spatial grid occupancy). |
-| **`main_phase3.py`** | Primary command-line integration script running the full end-to-end processing, matching, filtering, and visualization pipeline. |
-
----
-
-## 📊 The 9 Evaluation Metrics & Acceptance Thresholds
-
-For a registration between two lunar scenes to be accepted as production-ready, **LunarCV** evaluates 9 quantitative metrics:
-
-| Metric | Description | Target Threshold |
-| :--- | :--- | :--- |
-| **1. Inlier Count** | Total number of geometrically verified inliers after MAGSAC++ | $\ge 15\text{ points}$ |
-| **2. Confidence Distribution** | Min, Median, Mean, and Max LoFTR match confidence scores | High mean/median ($> 0.40$) |
-| **3. Convex Hull Coverage** | Spatial area of the inlier convex hull relative to total image area | $> 30\%$ of patch area |
-| **4. Minimum Separation** | Minimum Euclidean distance between adjacent inliers | $> 10.0\text{ pixels}$ |
-| **5. Grid-Cell Occupancy** | Percentage of occupied cells in a $4 \times 4$ spatial grid (16 cells) | $> 50\%$ (at least $8/16$ cells) |
-| **6. Forward RMSE** | Reprojection RMSE mapping LRO $\to$ TMC-2 using $H$ | $< 3.0\text{ pixels}$ |
-| **7. Backward RMSE** | Reprojection RMSE mapping TMC-2 $\to$ LRO using $H^{-1}$ | $< 5.0\text{ pixels}$ |
-| **8. Symmetric Error** | Average of forward and backward transfer errors | $< 3.0\text{ pixels}$ |
-| **9. 5-Fold Cross Validation** | Reprojection RMSE on held-out test points using 5-fold cross-validation | $< 10.0\text{ pixels}$ |
-
----
-
-## ⚡ Execution Commands
-
-### 1. Run the Main Registration Pipeline
+### 1. Ingestion & Scale Verification
+Verifies zero-copy memory mapping, sensor geometry, and scale ratio:
 ```bash
-uv run python src/main_phase3.py
+uv run python src/test_new_baseline.py
 ```
 
-### 2. Run the Transform Audit & Synthetic Unit Test
+### 2. Run the OHRC ↔ LRO NAC Baseline Registration
+Executes the evidence-based baseline pipeline on the new experimental pair:
+```bash
+uv run python src/main_baseline_ohrc_lro.py
+```
+
+### 3. Run the Transform Audit & Synthetic Unit Tests
+Verifies mathematical transformation consistency ($< 10^{-4}\text{ px}$ error verification):
 ```bash
 uv run python src/transform_audit.py
 ```
 
-### 3. Run the 2nd-Pass Constrained Evaluator
-```bash
-uv run python src/constrained_matching_pass.py
-```
-
 ---
 
-## 📈 Recent Findings & Audit Status
+## 📊 Latest Experimental Results (OHRC ↔ LRO NAC RE)
 
-* ✅ **Mathematical & Transform Integrity**: Verified via `src/transform_audit.py`. Synthetic unit tests passed with **$0.000065\text{ px}$ RMSE**. Homography direction ($H_{\text{LRO}\to\text{TMC2}}$) is 100% verified.
-* ✅ **Sub-Pixel Local Precision**: Verified. Inliers exhibit sub-pixel local accuracy (**$RMSE = 0.3261\text{ px}$**, **$\text{Median Error} = 0.1298\text{ px}$**).
-* ⚠️ **Spatial Coverage & Inlier Count**: In the current test patch, 5 inliers occupy 8.32% of the patch area (25% grid occupancy), resulting in a 5-fold cross-validation error of 106.8 px outside the local cluster.
-* 📌 **Current Recommendation**: Maintain provisional inlier evidence and perform exact geographic footprint overlap cropping before final Phase 4 sign-off.
+Running on the real Chandrayaan-2 OHRC and NASA LRO NAC (`M1350459544RE`) baseline pair.
 
----
+We have implemented a **Spatially Constrained Matching** pipeline (`src/spatially_constrained_matching.py`) that applies 4x4 Grid Uniformity and Confidence Filtering to prevent MAGSAC++ from overfitting to micro-clusters.
 
-## 📜 Technical Dependencies
-* **Python 3.11+**
-* **PyTorch 2.6+** (CUDA 12.4 enabled)
-* **Kornia 0.8.3** (LoFTR pretrained feature weights)
-* **OpenCV 5.0+** (USAC_MAGSAC, warpPerspective, CLAHE)
-* **NumPy, SciPy, Matplotlib, Pandas, PyProj, Rasterio**
+| Metric | Current Spatially Constrained Result (Exp D) | Acceptance Criteria | Status |
+| :--- | :--- | :--- | :--- |
+| **Candidate Matches** | **160** (filtered from 525) | - | ✅ Spatial distribution forced |
+| **MAGSAC++ Inliers** | **7** | $\ge 15$ | ❌ Failed to find 15 inliers |
+| **Grid Occupancy** | **25.0%** (4 / 16 cells) | $> 50\%$ | ❌ Highly localized |
+| **Convex Hull Coverage** | **17.78%** | $> 30\%$ | ❌ Highly localized |
+| **Symmetric RMSE** | **1.79 px** | $< 3.0\text{ px}$ | ✅ Low training error |
+| **Cross-Validation RMSE** | **55.68 px** | Reasonable | ❌ Massive overfitting/distortion |
+
+### Verdict: **REJECTED**
+Despite implementing rigorous spatial uniformity constraints, the pipeline failed to extract a globally consistent registration. The underlying LoFTR matcher is only finding reliable features in 4 localized micro-clusters. Forcing spatial diversity causes the geometric model (Affine/Homography) to fit a highly distorted, physically implausible transformation (evident by the 55.68 px CV error).
+
+**Next Bottleneck:** The correspondence generation (matcher) itself is struggling with the low-texture, high-ambiguity lunar regolith. We need to experiment with alternative matchers (e.g., LightGlue, RIFT2) or revisit preprocessing enhancements (e.g., CLAHE) to boost feature distinctiveness.
