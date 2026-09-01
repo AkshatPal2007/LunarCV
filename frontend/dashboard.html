@@ -7,6 +7,26 @@
     <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
+    <!-- 5-SECOND INTRO CURTAIN -->
+    <div id="curtain" class="curtain">
+        <div class="curtain-timer" id="curtainTimer">5</div>
+        <div class="curtain-content">
+            <div class="lunar-logo">
+                <div class="orbit-ring"></div>
+                <div class="moon"></div>
+            </div>
+            <h1 class="curtain-title">LunarCV</h1>
+            <p class="curtain-subtitle">Sub-Pixel Accurate Multi-Modal Image Registration</p>
+            <div class="curtain-stats">
+                <span class="curtain-stat">0.58px RMSE</span>
+                <span class="curtain-divider">•</span>
+                <span class="curtain-stat">87.3% Accuracy</span>
+                <span class="curtain-divider">•</span>
+                <span class="curtain-stat">Real-Time Processing</span>
+            </div>
+        </div>
+    </div>
+
     <header>
         <div class="container">
             <h1>LunarCV Registration Dashboard</h1>
@@ -334,5 +354,28 @@
             <p>Benchmarked against: Makharia et al., IEEE InGARSS</p>
         </div>
     </footer>
+
+    <script>
+        // Countdown timer
+        const timerElement = document.getElementById('curtainTimer');
+        let timeLeft = 5.0;
+
+        const timerInterval = setInterval(() => {
+            timeLeft -= 0.1;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                clearInterval(timerInterval);
+            }
+            timerElement.textContent = timeLeft.toFixed(1);
+        }, 100);
+
+        // Remove curtain from DOM after fade-out completes
+        setTimeout(() => {
+            const curtain = document.getElementById('curtain');
+            if (curtain) {
+                curtain.remove();
+            }
+        }, 5000);
+    </script>
 </body>
 </html>
