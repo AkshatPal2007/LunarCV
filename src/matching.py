@@ -14,7 +14,6 @@ from pathlib import Path
 from kornia.feature import LoFTR
 
 from io_utils import load_ohrc_memmap, load_lro_nac_memmap, extract_patch
-from preprocessing import percentile_stretch_uint8
 
 
 class LoFTRMatcher:
