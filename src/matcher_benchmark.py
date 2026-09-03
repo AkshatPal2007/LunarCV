@@ -33,7 +33,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pandas as pd
 from config import (
     OHRC_IMG_PATH, OHRC_SHAPE, OHRC_DTYPE,
-    LRO_IMG_PATH, SCALE_RATIO_LRO_TO_OHRC,
+    LRO_IMG_PATH, SCALE_X_LRO_TO_OHRC,
+    SCALE_Y_LRO_TO_OHRC,
     FIGURES_DIR, MATCHES_PROCESSED_DIR,
 )
 from io_utils import load_ohrc_memmap, load_lro_nac_memmap, extract_patch
@@ -72,8 +73,8 @@ def load_image_pair():
     ohrc_norm = percentile_stretch_uint8(ohrc_raw)
     lro_norm  = percentile_stretch_uint8(lro_raw)
 
-    target_w = int(round(ohrc_norm.shape[1] / SCALE_RATIO_LRO_TO_OHRC))
-    target_h = int(round(ohrc_norm.shape[0] / SCALE_RATIO_LRO_TO_OHRC))
+    target_w = int(round(ohrc_norm.shape[1] / SCALE_X_LRO_TO_OHRC))
+    target_h = int(round(ohrc_norm.shape[0] / SCALE_Y_LRO_TO_OHRC))
     ohrc_scaled = cv2.resize(ohrc_norm, (target_w, target_h), interpolation=cv2.INTER_AREA)
 
     print(f"OHRC scaled: {ohrc_scaled.shape} | LRO: {lro_norm.shape}")

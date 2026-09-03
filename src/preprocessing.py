@@ -67,6 +67,15 @@ def normalize_uint16_to_uint8(
     return scaled.astype(np.uint8)
 
 
+def percentile_stretch_uint8(img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0) -> np.ndarray:
+    """Minimal normalization: robust percentile stretch to uint8 [0, 255]."""
+    v_min, v_max = np.percentile(img, (p_low, p_high))
+    if v_max <= v_min:
+        v_max = v_min + 1.0
+    stretched = np.clip((img.astype(np.float32) - v_min) / (v_max - v_min) * 255.0, 0, 255)
+    return stretched.astype(np.uint8)
+
+
 # -----------------------------
 # CLAHE
 # -----------------------------

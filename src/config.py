@@ -66,9 +66,10 @@ LRO_GSD = 1.60  # meters / pixel (1.55m cross-track, 1.66m along-track)
 LRO_LAT_RANGE = (-15.88, -13.00)
 LRO_LON_RANGE = (25.08, 25.41)
 
-# Scale ratio between sensors
-SCALE_RATIO_LRO_TO_OHRC = LRO_GSD / OHRC_GSD  # ~6.15x
-
+# Scale ratios between sensors (Anamorphic scaling to account for LRO 2x cross-track binning)
+# Derived empirically from precise geographic overlap bounds
+SCALE_Y_LRO_TO_OHRC = 15000 / 3294  # ~4.55x
+SCALE_X_LRO_TO_OHRC = 6000 / 571    # ~10.5x
 # Processed data subdirectories
 OHRC_PROCESSED_DIR = PROCESSED_DIR / "ohrc"
 LRO_PROCESSED_DIR  = PROCESSED_DIR / "lro"

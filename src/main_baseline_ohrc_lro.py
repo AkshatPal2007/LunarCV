@@ -29,8 +29,8 @@ from config import (
     OHRC_DTYPE,
     OHRC_GSD,
     LRO_IMG_PATH,
-    LRO_GSD,
-    SCALE_RATIO_LRO_TO_OHRC,
+    SCALE_X_LRO_TO_OHRC,
+    SCALE_Y_LRO_TO_OHRC,
     FIGURES_DIR,
     OHRC_PROCESSED_DIR,
     LRO_PROCESSED_DIR,
@@ -134,13 +134,12 @@ def main() -> None:
     ohrc_norm = percentile_stretch_uint8(ohrc_raw, p_low=1.0, p_high=99.0)
     lro_norm  = percentile_stretch_uint8(lro_raw, p_low=1.0, p_high=99.0)
 
-    # Scale OHRC down by scale_ratio so its GSD matches LRO (~1.60 m/px)
-    # OHRC (15000, 6000) / 6.15 -> ~ (2437, 975)
-    target_w = int(round(ohrc_norm.shape[1] / SCALE_RATIO_LRO_TO_OHRC))
-    target_h = int(round(ohrc_norm.shape[0] / SCALE_RATIO_LRO_TO_OHRC))
+    # Anamorphic scale OHRC to match LRO's 2x cross-track binning
+    target_w = int(round(ohrc_norm.shape[1] / SCALE_X_LRO_TO_OHRC))
+    target_h = int(round(ohrc_norm.shape[0] / SCALE_Y_LRO_TO_OHRC))
     ohrc_scaled = cv2.resize(ohrc_norm, (target_w, target_h), interpolation=cv2.INTER_AREA)
 
-    print(f"  OHRC scaled to LRO GSD: {ohrc_norm.shape} -> {ohrc_scaled.shape} (scale={SCALE_RATIO_LRO_TO_OHRC:.2f}x)")
+    print(f"  OHRC scaled to LRO: {ohrc_norm.shape} -> {ohrc_scaled.shape}")
     print(f"  LRO reference patch   : {lro_norm.shape}")
 
     # ------------------------------------------------------------------
