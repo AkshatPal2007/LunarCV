@@ -40,6 +40,7 @@ from io_utils import load_ohrc_memmap, load_lro_nac_memmap, extract_patch
 from preprocessing import percentile_stretch_uint8
 from matching import LoFTRMatcher, save_matches_npz, load_matches_npz
 from matching_lightglue import LightGlueFeatureMatcher
+from matching_rift2 import RIFT2Matcher
 from spatial_uniformity import filter_spatial_uniformity
 from transform import estimate_transform
 from evaluate import calculate_reprojection_errors, calculate_spatial_metrics, cross_validate_transform
@@ -252,6 +253,24 @@ def main():
 
     print("\n[LightGlue] Evaluating pipeline...")
     all_rows.extend(eval_pipeline("LightGlue", pts_src_g, pts_ref_g, img_shape, src_img, ref_img, "lightglue"))
+
+    # ── RIFT2 ────────────────────────────────────────────────────────────
+    npz_rift2 = MATCHES_PROCESSED_DIR / "raw_candidates_rift2.npz"
+    if npz_rift2.exists():
+        print("\n[RIFT2] Loading cached candidates...")
+        pts_src_r, pts_ref_r, conf_r, _ = load_matches_npz(npz_rift2)
+        print(f"[RIFT2] {len(pts_src_r)} candidates loaded from cache")
+    else:
+        print("\n[RIFT2] Running RIFT2 (Phase Congruency) inference...")
+        t0 = time.time()
+        matcher_r = RIFT2Matcher(max_dim=1024)
+        pts_src_r, pts_ref_r, conf_r = matcher_r.match(src_img, ref_img, conf_threshold=0.0)
+        print(f"[RIFT2] {len(pts_src_r)} candidates in {time.time()-t0:.1f}s")
+        save_matches_npz(npz_rift2, pts_src_r, pts_ref_r, conf_r)
+
+    print("\n[RIFT2] Evaluating pipeline...")
+    all_rows.extend(eval_pipeline("RIFT2", pts_src_r, pts_ref_r, img_shape, src_img, ref_img, "rift2"))
+
 
     # ── Report ────────────────────────────────────────────────────────────
     df = pd.DataFrame(all_rows)
