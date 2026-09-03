@@ -29,6 +29,7 @@ from config import (
     OHRC_DTYPE,
     OHRC_GSD,
     LRO_IMG_PATH,
+    LRO_GSD,
     SCALE_X_LRO_TO_OHRC,
     SCALE_Y_LRO_TO_OHRC,
     FIGURES_DIR,
@@ -38,7 +39,7 @@ from config import (
 )
 from io_utils import load_ohrc_memmap, load_lro_nac_memmap, extract_patch, print_patch_stats
 from outlier_rejection import magsac_filter, print_match_stats
-from matching import LoFTRMatcher
+from matching_lightglue import LightGlueFeatureMatcher
 
 
 def percentile_stretch_uint8(img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0) -> np.ndarray:
@@ -106,7 +107,7 @@ def main() -> None:
 
     print(f"  OHRC shape    : {ohrc_mm.shape} @ {OHRC_GSD} m/px")
     print(f"  LRO NAC shape : {lro_mm.shape} @ {LRO_GSD} m/px")
-    print(f"  Scale ratio   : {SCALE_RATIO_LRO_TO_OHRC:.2f}x (1 LRO px = {SCALE_RATIO_LRO_TO_OHRC:.2f} OHRC px)")
+    print(f"  Anamorphic Scale: X={SCALE_X_LRO_TO_OHRC:.2f}x, Y={SCALE_Y_LRO_TO_OHRC:.2f}x")
 
     # ------------------------------------------------------------------
     # 2. Extract Overlapping Test Patch
@@ -143,13 +144,49 @@ def main() -> None:
     print(f"  LRO reference patch   : {lro_norm.shape}")
 
     # ------------------------------------------------------------------
-    # 4. Feature Matching (LoFTR)
+    # 4. Feature Matching (Chunked SuperPoint+LightGlue)
     # ------------------------------------------------------------------
-    print(f"\n[4/5] Running LoFTR feature matching on scale-aligned pair...")
-    matcher = LoFTRMatcher(pretrained="outdoor", max_dim=1024)
-    # Source is OHRC (scaled), Reference is LRO
-    mkpts_src, mkpts_ref, conf = matcher.match(ohrc_scaled, lro_norm, conf_threshold=0.30)
-    print_match_stats(mkpts_src, mkpts_ref, conf, label="LoFTR Candidates")
+    print(f"\n[4/5] Running SuperPoint+LightGlue feature matching in overlapping chunks...")
+    matcher = LightGlueFeatureMatcher(max_dim=1500, max_keypoints=2048)
+    
+    n_chunks = 3
+    overlap = 400
+    h_src, w_src = ohrc_scaled.shape
+    h_ref, w_ref = lro_norm.shape
+    step_src = (h_src - overlap) // n_chunks
+    step_ref = (h_ref - overlap) // n_chunks
+    
+    all_mkpts_src, all_mkpts_ref, all_conf = [], [], []
+    
+    for i in range(n_chunks):
+        y1_src = i * step_src
+        y2_src = y1_src + step_src + overlap if i < n_chunks - 1 else h_src
+        y1_ref = i * step_ref
+        y2_ref = y1_ref + step_ref + overlap if i < n_chunks - 1 else h_ref
+        
+        patch_src = ohrc_scaled[y1_src:y2_src, :]
+        patch_ref = lro_norm[y1_ref:y2_ref, :]
+        
+        print(f"  Chunk {i+1}/{n_chunks}: OHRC [{y1_src}:{y2_src}], LRO [{y1_ref}:{y2_ref}]")
+        pts_src, pts_ref, conf = matcher.match(patch_src, patch_ref, conf_threshold=0.0)
+        
+        if len(pts_src) > 0:
+            pts_src[:, 1] += y1_src
+            pts_ref[:, 1] += y1_ref
+            all_mkpts_src.append(pts_src)
+            all_mkpts_ref.append(pts_ref)
+            all_conf.append(conf)
+            
+    if len(all_mkpts_src) > 0:
+        mkpts_src = np.vstack(all_mkpts_src)
+        mkpts_ref = np.vstack(all_mkpts_ref)
+        conf = np.concatenate(all_conf)
+    else:
+        mkpts_src = np.empty((0, 2), dtype=np.float32)
+        mkpts_ref = np.empty((0, 2), dtype=np.float32)
+        conf = np.empty((0,), dtype=np.float32)
+
+    print_match_stats(mkpts_src, mkpts_ref, conf, label="SuperPoint+LightGlue (All Chunks)")
 
     # ------------------------------------------------------------------
     # 5. MAGSAC++ Outlier Rejection & Evaluation
