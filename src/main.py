@@ -40,6 +40,7 @@ from config import (
 from io_utils import load_ohrc_memmap, load_lro_nac_memmap, extract_patch, print_patch_stats
 from outlier_rejection import magsac_filter, print_match_stats
 from matching_lightglue import LightGlueFeatureMatcher
+from subpixel import refine_matches
 
 
 def percentile_stretch_uint8(img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0) -> np.ndarray:
@@ -201,46 +202,65 @@ def main() -> None:
     )
     print_match_stats(mkpts_src_clean, mkpts_ref_clean, conf_clean, label="Inliers after MAGSAC++")
 
+    if H is None or len(mkpts_src_clean) < 4:
+        print("\n❌ Insufficient inliers found to fit homography.")
+        return
+
+    # ------------------------------------------------------------------
+    # 6. Sub-Pixel Refinement & Final Homography
+    # ------------------------------------------------------------------
+    print(f"\n[6/6] Running Sub-Pixel Refinement (win_size=2)...")
+    mkpts_src_ref, mkpts_ref_ref, stats = refine_matches(
+        ohrc_scaled, lro_norm, mkpts_src_clean, mkpts_ref_clean,
+        win_size=(2, 2), zero_zone=(-1, -1), min_eigen_threshold=1e-5
+    )
+
+    print(f"  Successfully refined: {stats['successfully_refined']} / {stats['total_points']}")
+    print(f"  Mean displacement   : {stats['mean_displacement']:.4f} pixels")
+
+    # Re-estimate final homography on the sub-pixel refined points
+    H_final, _ = cv2.findHomography(mkpts_ref_ref, mkpts_src_ref, method=0)
+
     # Compute Reprojection RMSE
-    if H is not None and len(mkpts_src_clean) >= 4:
-        ref_3d = mkpts_ref_clean.astype(np.float32).reshape(-1, 1, 2)
-        pred_src = cv2.perspectiveTransform(ref_3d, H).reshape(-1, 2)
-        residuals = np.linalg.norm(mkpts_src_clean - pred_src, axis=1)
+    if H_final is not None:
+        ref_3d = mkpts_ref_ref.astype(np.float32).reshape(-1, 1, 2)
+        pred_src = cv2.perspectiveTransform(ref_3d, H_final).reshape(-1, 2)
+        residuals = np.linalg.norm(mkpts_src_ref - pred_src, axis=1)
 
         rmse = float(np.sqrt(np.mean(residuals**2)))
         median_err = float(np.median(residuals))
         max_err = float(np.max(residuals))
-        inlier_ratio = len(mkpts_src_clean) / len(conf) if len(conf) > 0 else 0.0
+        inlier_ratio = len(mkpts_src_ref) / len(conf) if len(conf) > 0 else 0.0
 
         print("\n" + "=" * 70)
-        print("BASELINE REGISTRATION RESULTS (OHRC <-> LRO NAC)")
+        print("FINAL REGISTRATION RESULTS (OHRC <-> LRO NAC)")
         print("=" * 70)
         print(f"  Candidate matches  : {len(conf)}")
-        print(f"  Inlier matches     : {len(mkpts_src_clean)}")
+        print(f"  Inlier matches     : {len(mkpts_src_ref)}")
         print(f"  Inlier ratio       : {inlier_ratio:.3f}")
-        print(f"  Reprojection RMSE  : {rmse:.4f} pixels (Paper SuperGlue Baseline: ~0.60 px)")
+        print(f"  Reprojection RMSE  : {rmse:.4f} pixels (Sub-pixel refined)")
         print(f"  Median error       : {median_err:.4f} pixels")
         print(f"  Maximum error      : {max_err:.4f} pixels")
         print("=" * 70)
 
         # Save match visualization figure
-        fig_matches = FIGURES_DIR / "ohrc_lro_baseline_matches.png"
+        fig_matches = FIGURES_DIR / "ohrc_lro_baseline_matches_refined.png"
         draw_connected_matches(
             ohrc_scaled,
             lro_norm,
-            mkpts_src_clean,
-            mkpts_ref_clean,
+            mkpts_src_ref,
+            mkpts_ref_ref,
             fig_matches,
-            title=f"OHRC <-> LRO NAC Baseline Matches ({len(mkpts_src_clean)} Inliers, RMSE={rmse:.2f} px)",
+            title=f"OHRC <-> LRO NAC Refined Matches ({len(mkpts_src_ref)} Inliers, RMSE={rmse:.2f} px)",
         )
 
-        # Save inliers array
-        np.save(MATCHES_PROCESSED_DIR / "ohrc_lro_mkpts_src.npy", mkpts_src_clean)
-        np.save(MATCHES_PROCESSED_DIR / "ohrc_lro_mkpts_ref.npy", mkpts_ref_clean)
-        np.save(MATCHES_PROCESSED_DIR / "ohrc_lro_H.npy", H)
-        print(f"  [npy] Saved match arrays to {MATCHES_PROCESSED_DIR}")
+        # Save refined inliers array
+        np.save(MATCHES_PROCESSED_DIR / "ohrc_lro_mkpts_src.npy", mkpts_src_ref)
+        np.save(MATCHES_PROCESSED_DIR / "ohrc_lro_mkpts_ref.npy", mkpts_ref_ref)
+        np.save(MATCHES_PROCESSED_DIR / "ohrc_lro_H.npy", H_final)
+        print(f"  [npy] Saved refined match arrays to {MATCHES_PROCESSED_DIR}")
     else:
-        print("\n❌ Insufficient inliers found to fit homography.")
+        print("\n❌ Failed to fit final homography after refinement.")
 
 
 if __name__ == "__main__":
