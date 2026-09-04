@@ -19,6 +19,7 @@ METADATA_DIR = DATA_DIR / "metadata"
 OUTPUT_DIR = PROJECT_ROOT / "outputs"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 EVAL_DIR = OUTPUT_DIR / "evaluations"
+SUBMISSION_DIR = OUTPUT_DIR / "submission"
 
 # ---------------------------------------------------------------------------
 # Chandrayaan-2 OHRC Baseline Product
@@ -81,3 +82,4 @@ LRO_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 MATCHES_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 EVAL_DIR.mkdir(parents=True, exist_ok=True)
+SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
