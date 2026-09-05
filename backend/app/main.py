@@ -13,7 +13,7 @@ from app.api.routes import health, upload, registration
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
 # CORS
@@ -28,7 +28,9 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix=settings.API_V1_STR, tags=["health"])
 app.include_router(upload.router, prefix=settings.API_V1_STR, tags=["upload"])
-app.include_router(registration.router, prefix=settings.API_V1_STR, tags=["registration"])
+app.include_router(
+    registration.router, prefix=settings.API_V1_STR, tags=["registration"]
+)
 
 
 # Serve result files
@@ -39,6 +41,7 @@ async def get_result_file(job_id: str, filename: str):
 
     if not file_path.exists():
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(file_path)
@@ -47,8 +50,4 @@ async def get_result_file(job_id: str, filename: str):
 @app.get("/")
 async def root():
     """Root endpoint."""
-    return {
-        "message": "LunarCV API",
-        "version": settings.VERSION,
-        "docs": "/docs"
-    }
+    return {"message": "LunarCV API", "version": settings.VERSION, "docs": "/docs"}

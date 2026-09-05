@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lunarcv-backend-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/../data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+    networks:
+      - lunarcv-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: lunarcv-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - lunarcv-network
+
+networks:
+  lunarcv-network:
+    driver: bridge

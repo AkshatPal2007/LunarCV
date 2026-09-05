@@ -46,7 +46,11 @@ from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 from lunarcv.registration.outlier_rejection import magsac_filter, print_match_stats
 from lunarcv.registration.spatial_uniformity import spatial_uniformity_report
 from lunarcv.registration.subpixel import refine_matches
-from lunarcv.registration.transform import compute_registration, make_checkerboard, make_overlay
+from lunarcv.registration.transform import (
+    compute_registration,
+    make_checkerboard,
+    make_overlay,
+)
 
 
 def percentile_stretch_uint8(

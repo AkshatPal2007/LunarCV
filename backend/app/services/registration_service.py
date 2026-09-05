@@ -17,7 +17,11 @@ from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 from lunarcv.registration.outlier_rejection import magsac_filter
 from lunarcv.registration.spatial_uniformity import spatial_uniformity_report
 from lunarcv.registration.subpixel import refine_matches
-from lunarcv.registration.transform import compute_registration, make_overlay, make_checkerboard
+from lunarcv.registration.transform import (
+    compute_registration,
+    make_overlay,
+    make_checkerboard,
+)
 
 
 def percentile_stretch_uint8(
@@ -34,11 +38,7 @@ def percentile_stretch_uint8(
 
 
 async def run_registration(
-    job_id: str,
-    source_path: Path,
-    reference_path: Path,
-    matcher: str,
-    job_store: dict
+    job_id: str, source_path: Path, reference_path: Path, matcher: str, job_store: dict
 ):
     """
     Run the registration pipeline in the background.
@@ -151,6 +151,7 @@ async def run_registration(
 
         # Save correspondence CSV
         import csv
+
         csv_path = results_dir / "correspondence_points.csv"
         with open(csv_path, mode="w", newline="") as f:
             writer = csv.writer(f)

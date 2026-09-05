@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lunarcv-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - backend-venv:/app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:80
+    restart: unless-stopped
+    networks:
+      - lunarcv-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lunarcv-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+    restart: unless-stopped
+    networks:
+      - lunarcv-network
+
+volumes:
+  backend-venv:
+  data-uploads:
+  data-results:
+
+networks:
+  lunarcv-network:
+    driver: bridge

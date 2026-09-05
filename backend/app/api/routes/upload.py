@@ -27,7 +27,7 @@ async def upload_image(file: UploadFile = File(...)):
     if file_ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid file type. Allowed: {', '.join(settings.ALLOWED_EXTENSIONS)}"
+            detail=f"Invalid file type. Allowed: {', '.join(settings.ALLOWED_EXTENSIONS)}",
         )
 
     # Generate unique file ID
@@ -40,7 +40,7 @@ async def upload_image(file: UploadFile = File(...)):
     if len(content) > settings.MAX_UPLOAD_SIZE:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE // (1024*1024)}MB"
+            detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB",
         )
 
     with open(save_path, "wb") as f:
@@ -50,5 +50,5 @@ async def upload_image(file: UploadFile = File(...)):
         file_id=file_id,
         filename=file.filename,
         size=len(content),
-        uploaded_at=datetime.utcnow().isoformat()
+        uploaded_at=datetime.utcnow().isoformat(),
     )

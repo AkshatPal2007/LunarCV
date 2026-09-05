@@ -26,8 +26,7 @@ job_store = {}
 
 @router.post("/register", response_model=RegistrationJobResponse)
 async def create_registration_job(
-    request: RegistrationJobCreate,
-    background_tasks: BackgroundTasks
+    request: RegistrationJobCreate, background_tasks: BackgroundTasks
 ):
     """
     Start a registration job between source and reference images.
@@ -63,13 +62,11 @@ async def create_registration_job(
         source_path=source_files[0],
         reference_path=reference_files[0],
         matcher=request.matcher,
-        job_store=job_store
+        job_store=job_store,
     )
 
     return RegistrationJobResponse(
-        job_id=job_id,
-        status=JobStatus.PENDING,
-        created_at=created_at
+        job_id=job_id, status=JobStatus.PENDING, created_at=created_at
     )
 
 
@@ -86,7 +83,7 @@ async def get_job_status(job_id: str):
         progress=job.get("progress"),
         message=job.get("message"),
         created_at=job["created_at"],
-        completed_at=job.get("completed_at")
+        completed_at=job.get("completed_at"),
     )
 
 
@@ -100,8 +97,7 @@ async def get_job_results(job_id: str):
 
     if job["status"] not in [JobStatus.COMPLETED, JobStatus.FAILED]:
         raise HTTPException(
-            status_code=400,
-            detail=f"Job not ready. Current status: {job['status']}"
+            status_code=400, detail=f"Job not ready. Current status: {job['status']}"
         )
 
     results_dir = settings.RESULTS_DIR / job_id
@@ -110,9 +106,17 @@ async def get_job_results(job_id: str):
         job_id=job_id,
         status=job["status"],
         metrics=job.get("metrics"),
-        registered_image_url=f"/api/v1/files/{job_id}/registered.png" if job["status"] == JobStatus.COMPLETED else None,
-        overlay_image_url=f"/api/v1/files/{job_id}/overlay.png" if job["status"] == JobStatus.COMPLETED else None,
-        checkerboard_image_url=f"/api/v1/files/{job_id}/checkerboard.png" if job["status"] == JobStatus.COMPLETED else None,
-        correspondence_csv_url=f"/api/v1/files/{job_id}/correspondence_points.csv" if job["status"] == JobStatus.COMPLETED else None,
-        error=job.get("error")
+        registered_image_url=f"/api/v1/files/{job_id}/registered.png"
+        if job["status"] == JobStatus.COMPLETED
+        else None,
+        overlay_image_url=f"/api/v1/files/{job_id}/overlay.png"
+        if job["status"] == JobStatus.COMPLETED
+        else None,
+        checkerboard_image_url=f"/api/v1/files/{job_id}/checkerboard.png"
+        if job["status"] == JobStatus.COMPLETED
+        else None,
+        correspondence_csv_url=f"/api/v1/files/{job_id}/correspondence_points.csv"
+        if job["status"] == JobStatus.COMPLETED
+        else None,
+        error=job.get("error"),
     )
