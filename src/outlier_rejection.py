@@ -10,8 +10,8 @@ Usage:
 
 from __future__ import annotations
 
-import numpy as np
 import cv2
+import numpy as np
 
 
 def magsac_filter(
@@ -111,10 +111,16 @@ def print_match_stats(
     print(f"--- {label} ---")
     print(f"  Count : {len(mkpts_src)}")
     if conf is not None:
-        print(f"  Conf  : min={conf.min():.3f}  max={conf.max():.3f}  mean={conf.mean():.3f}")
+        print(
+            f"  Conf  : min={conf.min():.3f}  max={conf.max():.3f}  mean={conf.mean():.3f}"
+        )
     if len(mkpts_src) > 0:
         # Residuals in source image
-        print(f"  Src   : x=[{mkpts_src[:, 0].min():.1f}, {mkpts_src[:, 0].max():.1f}]  "
-              f"y=[{mkpts_src[:, 1].min():.1f}, {mkpts_src[:, 1].max():.1f}]")
-        print(f"  Ref   : x=[{mkpts_ref[:, 0].min():.1f}, {mkpts_ref[:, 0].max():.1f}]  "
-              f"y=[{mkpts_ref[:, 1].min():.1f}, {mkpts_ref[:, 1].max():.1f}]")
+        print(
+            f"  Src   : x=[{mkpts_src[:, 0].min():.1f}, {mkpts_src[:, 0].max():.1f}]  "
+            f"y=[{mkpts_src[:, 1].min():.1f}, {mkpts_src[:, 1].max():.1f}]"
+        )
+        print(
+            f"  Ref   : x=[{mkpts_ref[:, 0].min():.1f}, {mkpts_ref[:, 0].max():.1f}]  "
+            f"y=[{mkpts_ref[:, 1].min():.1f}, {mkpts_ref[:, 1].max():.1f}]"
+        )

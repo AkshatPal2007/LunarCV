@@ -1,6 +1,7 @@
 """
 subpixel.py — Sub-pixel refinement of geometric correspondences.
 """
+
 from __future__ import annotations
 
 import cv2
@@ -14,7 +15,11 @@ def refine_matches(
     reference_points: np.ndarray,
     win_size: tuple[int, int] = (5, 5),
     zero_zone: tuple[int, int] = (-1, -1),
-    criteria: tuple[int, int, float] = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001),
+    criteria: tuple[int, int, float] = (
+        cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,
+        40,
+        0.001,
+    ),
     min_eigen_threshold: float = 1e-4,
 ) -> tuple[np.ndarray, np.ndarray, dict]:
     """
@@ -35,10 +40,10 @@ def refine_matches(
     pts_ref = reference_points.copy().astype(np.float32)
 
     n_pts = len(pts_src)
-    
+
     src_refined = pts_src.copy()
     ref_refined = pts_ref.copy()
-    
+
     src_mask = np.zeros(n_pts, dtype=bool)
     ref_mask = np.zeros(n_pts, dtype=bool)
 
@@ -47,11 +52,11 @@ def refine_matches(
         wx, wy = w_size
         if x - wx < 0 or x + wx >= img.shape[1] or y - wy < 0 or y + wy >= img.shape[0]:
             return False
-        
+
         patch = img[y - wy : y + wy + 1, x - wx : x + wx + 1]
         eigen_img = cv2.cornerMinEigenVal(patch, blockSize=3, ksize=3)
         center_eigen = eigen_img[wy, wx]
-        
+
         return center_eigen > min_eigen_threshold
 
     for i in range(n_pts):
@@ -60,7 +65,7 @@ def refine_matches(
             cv2.cornerSubPix(source_image, p, win_size, zero_zone, criteria)
             src_refined[i] = p[0, 0]
             src_mask[i] = True
-            
+
         if check_local_structure(reference_image, pts_ref[i], win_size):
             p = np.array([[pts_ref[i]]], dtype=np.float32)
             cv2.cornerSubPix(reference_image, p, win_size, zero_zone, criteria)
@@ -69,7 +74,7 @@ def refine_matches(
 
     src_disp = np.linalg.norm(src_refined - pts_src, axis=1)
     ref_disp = np.linalg.norm(ref_refined - pts_ref, axis=1)
-    
+
     tot_disp = src_disp + ref_disp
     both_refined = src_mask & ref_mask
 
@@ -77,8 +82,12 @@ def refine_matches(
         "total_points": n_pts,
         "successfully_refined": int(both_refined.sum()),
         "unrefinable_points": int(n_pts - both_refined.sum()),
-        "mean_displacement": float(np.mean(tot_disp[both_refined])) if both_refined.any() else 0.0,
-        "max_displacement": float(np.max(tot_disp[both_refined])) if both_refined.any() else 0.0,
+        "mean_displacement": float(np.mean(tot_disp[both_refined]))
+        if both_refined.any()
+        else 0.0,
+        "max_displacement": float(np.max(tot_disp[both_refined]))
+        if both_refined.any()
+        else 0.0,
     }
 
     return src_refined, ref_refined, stats

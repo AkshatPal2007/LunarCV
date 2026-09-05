@@ -13,23 +13,32 @@
 # Original MATLAB version by Peter Kovesi
 # <http://www.csse.uwa.edu.au/~pk/research/matlabfns/PhaseCongruency/phasecong3.m>
 
-#Python translation by Alistair Muldal
+# Python translation by Alistair Muldal
 # <alistair muldal@pharm ox ac uk>
 
 
 import numpy as np
-from scipy.fftpack import fftshift, ifftshift
-
-from .tools import rayleighmode as _rayleighmode
-from .tools import lowpassfilter as _lowpassfilter
+from scipy.fftpack import ifftshift
 
 # Try and use the faster Fourier transform functions from the pyfftw module if
 # available
 from .tools import fft2, ifft2
+from .tools import lowpassfilter as _lowpassfilter
+from .tools import rayleighmode as _rayleighmode
 
 
-def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
-              sigmaOnf=0.55, k=2., cutOff=0.5, g=10., noiseMethod=-1):
+def phasecong(
+    img,
+    nscale=5,
+    norient=6,
+    minWaveLength=3,
+    mult=2.1,
+    sigmaOnf=0.55,
+    k=2.0,
+    cutOff=0.5,
+    g=10.0,
+    noiseMethod=-1,
+):
     """
     Function for computing phase congruency on an image. This is a contrast-
     invariant edge and corner detector.
@@ -120,9 +129,9 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
     """
 
-    if img.dtype not in ['float32', 'float64']:
+    if img.dtype not in ["float32", "float64"]:
         img = np.float64(img)
-        imgdtype = 'float64'
+        imgdtype = "float64"
     else:
         imgdtype = img.dtype
 
@@ -131,8 +140,8 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
     rows, cols = img.shape
 
-    epsilon = 1E-4      # used to prevent /0.
-    IM = fft2(img)      # Fourier transformed image
+    epsilon = 1e-4  # used to prevent /0.
+    IM = fft2(img)  # Fourier transformed image
 
     # lists to contain convolution results and phase congruency images
     EO = []
@@ -154,17 +163,15 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
     # Pre-compute some stuff to speed up filter construction
 
     # Set up X and Y matrices with ranges normalised to +/- 0.5
-    if (cols % 2):
-        xvals = np.arange(-(cols - 1) / 2.,
-                          ((cols - 1) / 2.) + 1) / float(cols - 1)
+    if cols % 2:
+        xvals = np.arange(-(cols - 1) / 2.0, ((cols - 1) / 2.0) + 1) / float(cols - 1)
     else:
-        xvals = np.arange(-cols / 2., cols / 2.) / float(cols)
+        xvals = np.arange(-cols / 2.0, cols / 2.0) / float(cols)
 
-    if (rows % 2):
-        yvals = np.arange(-(rows - 1) / 2.,
-                          ((rows - 1) / 2.) + 1) / float(rows - 1)
+    if rows % 2:
+        yvals = np.arange(-(rows - 1) / 2.0, ((rows - 1) / 2.0) + 1) / float(rows - 1)
     else:
-        yvals = np.arange(-rows / 2., rows / 2.) / float(rows)
+        yvals = np.arange(-rows / 2.0, rows / 2.0) / float(rows)
 
     x, y = np.meshgrid(xvals, yvals, sparse=True)
 
@@ -181,7 +188,7 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
     # Get rid of the 0 radius value at the 0 frequency point (now at top-left
     # corner) so that taking the log of the radius will not cause trouble.
-    radius[0, 0] = 1.
+    radius[0, 0] = 1.0
 
     sintheta = np.sin(theta)
     costheta = np.cos(theta)
@@ -206,16 +213,16 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
     # congrunecy.
 
     # Updated filter parameters 6/9/2013:   radius .45, 'sharpness' 15
-    lp = _lowpassfilter((rows, cols), .45, 15)
+    lp = _lowpassfilter((rows, cols), 0.45, 15)
 
-    logGaborDenom = 2. * np.log(sigmaOnf) ** 2.
+    logGaborDenom = 2.0 * np.log(sigmaOnf) ** 2.0
     logGabor = []
 
     for ss in range(nscale):
         wavelength = minWaveLength * mult ** (ss)
 
         # centre of frequency filter
-        fo = 1. / wavelength
+        fo = 1.0 / wavelength
 
         # log Gabor
         logRadOverFo = np.log(radius / fo)
@@ -226,14 +233,13 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
         # set the value at the 0 frequency point of the filter back to
         # zero (undo the radius fudge).
-        tmp[0, 0] = 0.
+        tmp[0, 0] = 0.0
 
         logGabor.append(tmp)
 
     # MAIN LOOP
     # for each orientation...
     for oo in range(norient):
-
         # Construct the angular filter spread function
         angl = oo * (np.pi / norient)
 
@@ -252,11 +258,11 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
         # Scale theta so that cosine spread function has the right wavelength
         # and clamp to pi.
-        np.clip(dtheta * norient / 2., a_min=0, a_max=np.pi, out=dtheta)
+        np.clip(dtheta * norient / 2.0, a_min=0, a_max=np.pi, out=dtheta)
 
         # The spread function is cos(dtheta) between -pi and pi. We add 1, and
         # then divide by 2 so that the value ranges 0-1
-        spread = (np.cos(dtheta) + 1.) / 2.
+        spread = (np.cos(dtheta) + 1.0) / 2.0
 
         # Initialize accumulators
         sumE_ThisOrient = zeromat.copy()
@@ -268,7 +274,6 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
         # for each scale...
         for ss in range(nscale):
-
             # Multiply radial and angular components to get filter
             filt = logGabor[ss] * spread
 
@@ -294,8 +299,7 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
             if ss == 0:
                 # Use median to estimate noise statistics
                 if noiseMethod == -1:
-                    tau = (np.median(sumAn_ThisOrient.ravel()) /
-                           np.sqrt(np.log(4)))
+                    tau = np.median(sumAn_ThisOrient.ravel()) / np.sqrt(np.log(4))
 
                 # Use the mode to estimate noise statistics
                 elif noiseMethod == -2:
@@ -318,8 +322,12 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
 
         # Get weighted mean filter response vector, this gives the weighted
         # mean phase angle.
-        XEnergy = np.sqrt(sumE_ThisOrient * sumE_ThisOrient +
-                          sumO_ThisOrient * sumO_ThisOrient) + epsilon
+        XEnergy = (
+            np.sqrt(
+                sumE_ThisOrient * sumE_ThisOrient + sumO_ThisOrient * sumO_ThisOrient
+            )
+            + epsilon
+        )
         MeanE = sumE_ThisOrient / XEnergy
         MeanO = sumO_ThisOrient / XEnergy
 
@@ -364,18 +372,16 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
         # scaled inversely proportional to bandwidth we have a simple geometric
         # sum.
         else:
-            totalTau = tau * (1. - (1. / mult) ** nscale) / (1. - (1. / mult))
+            totalTau = tau * (1.0 - (1.0 / mult) ** nscale) / (1.0 - (1.0 / mult))
 
             # Calculate mean and std dev from tau using fixed relationship
             # between these parameters and tau. See
             # <http://mathworld.wolfram.com/RayleighDistribution.html>
-            EstNoiseEnergyMean = totalTau * np.sqrt(np.pi / 2.)
-            EstNoiseEnergySigma = totalTau * np.sqrt((4 - np.pi) / 2.)
+            EstNoiseEnergyMean = totalTau * np.sqrt(np.pi / 2.0)
+            EstNoiseEnergySigma = totalTau * np.sqrt((4 - np.pi) / 2.0)
 
             # Noise threshold, must be >= epsilon
-            T = np.maximum(
-                EstNoiseEnergyMean + k * EstNoiseEnergySigma,
-                epsilon)
+            T = np.maximum(EstNoiseEnergyMean + k * EstNoiseEnergySigma, epsilon)
 
         # Apply noise threshold, this is effectively wavelet denoising via soft
         # thresholding.
@@ -387,11 +393,11 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
         # dividing by the maximum amplitude at each point on the image.   If
         # there is only one non-zero component width takes on a value of 0, if
         # all components are equal width is 1.
-        width = (sumAn_ThisOrient / (maxAn + epsilon) - 1.) / (nscale - 1)
+        width = (sumAn_ThisOrient / (maxAn + epsilon) - 1.0) / (nscale - 1)
 
         # Calculate the sigmoidal weighting function for this
         # orientation
-        weight = 1. / (1. + np.exp(g * (cutOff - width)))
+        weight = 1.0 / (1.0 + np.exp(g * (cutOff - width)))
 
         # Apply weighting to energy, then calculate phase congruency
         thisPC = weight * Energy / sumAn_ThisOrient
@@ -414,24 +420,24 @@ def phasecong(img, nscale=5, norient=6, minWaveLength=3, mult=2.1,
     # maximum moments - these correspond to the singular values.
 
     # First normalise covariance values by the number of orientations/2
-    covx2 /= norient / 2.
-    covy2 /= norient / 2.
-    covxy *= 4. / norient  # This gives us 2*covxy/(norient/2)
-    denom = np.sqrt(
-        covxy * covxy + (covx2 - covy2) * (covx2 - covy2)) + epsilon
+    covx2 /= norient / 2.0
+    covy2 /= norient / 2.0
+    covxy *= 4.0 / norient  # This gives us 2*covxy/(norient/2)
+    denom = np.sqrt(covxy * covxy + (covx2 - covy2) * (covx2 - covy2)) + epsilon
 
     # Maximum and minimum moments
-    M = (covx2 + covy2 + denom) / 2.
-    m = (covx2 + covy2 - denom) / 2.
+    M = (covx2 + covy2 + denom) / 2.0
+    m = (covx2 + covy2 - denom) / 2.0
 
     # Orientation and feature phase/type
     ori = np.arctan2(EnergyV[:, :, 2], EnergyV[:, :, 1])
 
     # Wrap angles between -pi and pi and convert radians to degrees
-    ori = np.round((ori % np.pi) * 180. / np.pi)
+    ori = np.round((ori % np.pi) * 180.0 / np.pi)
 
-    OddV = np.sqrt(EnergyV[:, :, 1] * EnergyV[:, :, 1] +
-                   EnergyV[:, :, 2] * EnergyV[:, :, 2])
+    OddV = np.sqrt(
+        EnergyV[:, :, 1] * EnergyV[:, :, 1] + EnergyV[:, :, 2] * EnergyV[:, :, 2]
+    )
 
     # Feature phase pi/2 --> white line, 0 --> step, -pi/2 --> black line
     ft = np.arctan2(EnergyV[:, :, 0], OddV)

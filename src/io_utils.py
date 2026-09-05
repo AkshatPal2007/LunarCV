@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+
 import numpy as np
 
 
@@ -50,10 +51,10 @@ def parse_lro_pds_header(img_path: Path) -> dict:
         return default
 
     rec_bytes = get_val("RECORD_BYTES", cast=int)
-    lbl_recs  = get_val("LABEL_RECORDS", cast=int)
-    lines     = get_val("LINES", cast=int)
-    samples   = get_val("LINE_SAMPLES", cast=int)
-    bits      = get_val("SAMPLE_BITS", cast=int)
+    lbl_recs = get_val("LABEL_RECORDS", cast=int)
+    lines = get_val("LINES", cast=int)
+    samples = get_val("LINE_SAMPLES", cast=int)
+    bits = get_val("SAMPLE_BITS", cast=int)
 
     # Offset is always LABEL_RECORDS * RECORD_BYTES in standard PDS3
     offset = (lbl_recs * rec_bytes) if (lbl_recs and rec_bytes) else 0
@@ -76,11 +77,19 @@ def load_lro_nac_memmap(img_path: Path) -> tuple[np.memmap, dict]:
     meta = parse_lro_pds_header(img_path)
     if not meta["shape"]:
         raise ValueError(f"Could not parse shape from header of {img_path}")
-    arr = np.memmap(img_path, dtype=meta["dtype"], mode="r", offset=meta["offset"], shape=meta["shape"])
+    arr = np.memmap(
+        img_path,
+        dtype=meta["dtype"],
+        mode="r",
+        offset=meta["offset"],
+        shape=meta["shape"],
+    )
     return arr, meta
 
 
-def extract_patch(memmap_array: np.memmap, row_range: tuple[int, int], col_range: tuple[int, int]) -> np.ndarray:
+def extract_patch(
+    memmap_array: np.memmap, row_range: tuple[int, int], col_range: tuple[int, int]
+) -> np.ndarray:
     """Extract a patch from a memmapped array as an in-memory numpy array copy."""
     r0, r1 = row_range
     c0, c1 = col_range

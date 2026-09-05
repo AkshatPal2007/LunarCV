@@ -16,18 +16,18 @@ Notes:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import matplotlib
-matplotlib.use("Agg")          # non-interactive backend — safe in scripts
+
+matplotlib.use("Agg")  # non-interactive backend — safe in scripts
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Normalization
 # ---------------------------------------------------------------------------
+
 
 def normalize_uint16_to_uint8(
     patch: np.ndarray,
@@ -67,18 +67,23 @@ def normalize_uint16_to_uint8(
     return scaled.astype(np.uint8)
 
 
-def percentile_stretch_uint8(img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0) -> np.ndarray:
+def percentile_stretch_uint8(
+    img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0
+) -> np.ndarray:
     """Minimal normalization: robust percentile stretch to uint8 [0, 255]."""
     v_min, v_max = np.percentile(img, (p_low, p_high))
     if v_max <= v_min:
         v_max = v_min + 1.0
-    stretched = np.clip((img.astype(np.float32) - v_min) / (v_max - v_min) * 255.0, 0, 255)
+    stretched = np.clip(
+        (img.astype(np.float32) - v_min) / (v_max - v_min) * 255.0, 0, 255
+    )
     return stretched.astype(np.uint8)
 
 
 # -----------------------------
 # CLAHE
 # -----------------------------
+
 
 def apply_clahe(
     image_u8: np.ndarray,
@@ -115,7 +120,6 @@ def apply_clahe(
     return clahe.apply(image_u8)
 
 
-
 # Visualization helpers
 def save_comparison_figure(
     img_left: np.ndarray,
@@ -123,7 +127,7 @@ def save_comparison_figure(
     title_left: str,
     title_right: str,
     save_path: Path,
-    suptitle: Optional[str] = None,
+    suptitle: str | None = None,
     cmap: str = "gray",
     dpi: int = 150,
 ) -> None:

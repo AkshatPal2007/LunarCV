@@ -19,18 +19,27 @@ class LightGlueFeatureMatcher:
     Wrapper around official CVG SuperPoint + LightGlue for LunarCV.
     Maintains an identical interface to LoFTRMatcher.
     """
-    def __init__(self, device: str | None = None, max_dim: int = 1024, max_keypoints: int = 2048):
-        self.device = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
+
+    def __init__(
+        self, device: str | None = None, max_dim: int = 1024, max_keypoints: int = 2048
+    ):
+        self.device = torch.device(
+            device if device else ("cuda" if torch.cuda.is_available() else "cpu")
+        )
         self.max_dim = max_dim
         self.max_keypoints = max_keypoints
 
         print(f"[LightGlue] Loading SuperPoint extractor on {self.device}...")
-        self.extractor = SuperPoint(max_num_keypoints=self.max_keypoints).to(self.device).eval()
+        self.extractor = (
+            SuperPoint(max_num_keypoints=self.max_keypoints).to(self.device).eval()
+        )
 
         print("[LightGlue] Loading LightGlueMatcher(superpoint)...")
         self.matcher = LightGlue(features="superpoint").to(self.device).eval()
 
-        print(f"[LightGlue] Ready | max_dim={self.max_dim} | max_keypoints={max_keypoints}")
+        print(
+            f"[LightGlue] Ready | max_dim={self.max_dim} | max_keypoints={max_keypoints}"
+        )
 
     @torch.no_grad()
     def match(
@@ -46,7 +55,11 @@ class LightGlueFeatureMatcher:
         ref_proc, scale_ref = self._resize_for_matcher(ref_u8)
 
         def to_tensor(img: np.ndarray) -> torch.Tensor:
-            t = torch.from_numpy(img.astype(np.float32) / 255.0).unsqueeze(0).unsqueeze(0)
+            t = (
+                torch.from_numpy(img.astype(np.float32) / 255.0)
+                .unsqueeze(0)
+                .unsqueeze(0)
+            )
             return t.to(self.device)
 
         t_src = to_tensor(src_proc)
@@ -56,7 +69,9 @@ class LightGlueFeatureMatcher:
         feats_ref = self.extractor.extract(t_ref)
 
         matches_dict = self.matcher({"image0": feats_src, "image1": feats_ref})
-        feats_src, feats_ref, matches_dict = [rbd(x) for x in [feats_src, feats_ref, matches_dict]]
+        feats_src, feats_ref, matches_dict = [
+            rbd(x) for x in [feats_src, feats_ref, matches_dict]
+        ]
 
         matches = matches_dict["matches"]  # (K, 2)
         scores = matches_dict.get("matching_scores", None)

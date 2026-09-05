@@ -20,32 +20,33 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Data class returned by compute_registration
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class RegistrationResult:
     """All outputs of a single registration computation."""
 
-    H: np.ndarray                # (3, 3) homography: ref → src
-    H_warp: np.ndarray           # H pre-composed with translation T so no negative canvas coords
-    T: np.ndarray                # (3, 3) pure translation matrix applied to OHRC
-    warped_ref: np.ndarray       # warpPerspective(ref_img, H_warp)  — grayscale uint8
-    warped_src: np.ndarray       # warpPerspective(src_img, T)        — grayscale uint8
-    mask_ref: np.ndarray         # bool mask: valid pixels of warped_ref
-    mask_src: np.ndarray         # bool mask: valid pixels of warped_src
-    mask_overlap: np.ndarray     # bool mask: pixels valid in BOTH images
-    canvas_shape: tuple[int, int]# (height, width) of the output canvas
-    warped_corners: np.ndarray   # (4, 2) reference image corners in source space
+    H: np.ndarray  # (3, 3) homography: ref → src
+    H_warp: np.ndarray  # H pre-composed with translation T so no negative canvas coords
+    T: np.ndarray  # (3, 3) pure translation matrix applied to OHRC
+    warped_ref: np.ndarray  # warpPerspective(ref_img, H_warp)  — grayscale uint8
+    warped_src: np.ndarray  # warpPerspective(src_img, T)        — grayscale uint8
+    mask_ref: np.ndarray  # bool mask: valid pixels of warped_ref
+    mask_src: np.ndarray  # bool mask: valid pixels of warped_src
+    mask_overlap: np.ndarray  # bool mask: pixels valid in BOTH images
+    canvas_shape: tuple[int, int]  # (height, width) of the output canvas
+    warped_corners: np.ndarray  # (4, 2) reference image corners in source space
     bbox: tuple[int, int, int, int]  # (x_min, y_min, x_max, y_max)
-    overlap_pct: float           # valid overlap / warped_ref area * 100
+    overlap_pct: float  # valid overlap / warped_ref area * 100
 
 
 # ---------------------------------------------------------------------------
 # Homography estimation
 # ---------------------------------------------------------------------------
+
 
 def estimate_homography(
     pts_ref: np.ndarray,
@@ -79,6 +80,7 @@ def estimate_homography(
 # ---------------------------------------------------------------------------
 # Bounding-box computation
 # ---------------------------------------------------------------------------
+
 
 def compute_warped_bbox(
     H: np.ndarray,
@@ -131,6 +133,7 @@ def compute_warped_bbox(
 # Translation matrix
 # ---------------------------------------------------------------------------
 
+
 def build_translation(tx: float, ty: float) -> np.ndarray:
     """
     Build a 3×3 homogeneous translation matrix that shifts by (tx, ty).
@@ -144,9 +147,7 @@ def build_translation(tx: float, ty: float) -> np.ndarray:
     T : ndarray (3, 3) float64
     """
     return np.array(
-        [[1, 0, tx],
-         [0, 1, ty],
-         [0, 0, 1]],
+        [[1, 0, tx], [0, 1, ty], [0, 0, 1]],
         dtype=np.float64,
     )
 
@@ -154,6 +155,7 @@ def build_translation(tx: float, ty: float) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Image warping and mask generation
 # ---------------------------------------------------------------------------
+
 
 def warp_images(
     ref_img: np.ndarray,
@@ -197,12 +199,18 @@ def warp_images(
     warped_src = cv2.warpPerspective(src_img, T, (canvas_w, canvas_h))
 
     # Binary masks: True where the image contributes a valid (non-border) pixel
-    mask_ref = cv2.warpPerspective(
-        np.ones_like(ref_img, dtype=np.uint8) * 255, H_warp, (canvas_w, canvas_h)
-    ) > 0
-    mask_src = cv2.warpPerspective(
-        np.ones_like(src_img, dtype=np.uint8) * 255, T, (canvas_w, canvas_h)
-    ) > 0
+    mask_ref = (
+        cv2.warpPerspective(
+            np.ones_like(ref_img, dtype=np.uint8) * 255, H_warp, (canvas_w, canvas_h)
+        )
+        > 0
+    )
+    mask_src = (
+        cv2.warpPerspective(
+            np.ones_like(src_img, dtype=np.uint8) * 255, T, (canvas_w, canvas_h)
+        )
+        > 0
+    )
 
     return H_warp, T, warped_ref, warped_src, mask_ref, mask_src
 
@@ -210,6 +218,7 @@ def warp_images(
 # ---------------------------------------------------------------------------
 # Composite images (overlay + checkerboard)
 # ---------------------------------------------------------------------------
+
 
 def make_overlay(
     warped_ref: np.ndarray,
@@ -238,12 +247,12 @@ def make_overlay(
     out_h, out_w = warped_ref.shape
     mask_overlap = mask_ref & mask_src
 
-    lro_c  = cv2.cvtColor(warped_ref, cv2.COLOR_GRAY2BGR)
+    lro_c = cv2.cvtColor(warped_ref, cv2.COLOR_GRAY2BGR)
     ohrc_c = cv2.cvtColor(warped_src, cv2.COLOR_GRAY2BGR)
 
     overlay = np.zeros((out_h, out_w, 3), dtype=np.uint8)
-    overlay[mask_ref]     = lro_c[mask_ref]
-    overlay[mask_src]     = ohrc_c[mask_src]
+    overlay[mask_ref] = lro_c[mask_ref]
+    overlay[mask_src] = ohrc_c[mask_src]
     overlay[mask_overlap] = (lro_c[mask_overlap] // 2) + (ohrc_c[mask_overlap] // 2)
 
     return overlay, mask_overlap
@@ -276,9 +285,9 @@ def make_checkerboard(
     cell_mask = ((x // grid_size) + (y // grid_size)) % 2 == 0
 
     checker = np.zeros_like(warped_ref)
-    checker[mask_ref]  = warped_ref[mask_ref]
-    checker[mask_src]  = warped_src[mask_src]
-    checker[mask_overlap & cell_mask]  = warped_ref[mask_overlap & cell_mask]
+    checker[mask_ref] = warped_ref[mask_ref]
+    checker[mask_src] = warped_src[mask_src]
+    checker[mask_overlap & cell_mask] = warped_ref[mask_overlap & cell_mask]
     checker[mask_overlap & ~cell_mask] = warped_src[mask_overlap & ~cell_mask]
 
     return checker
@@ -287,6 +296,7 @@ def make_checkerboard(
 # ---------------------------------------------------------------------------
 # One-shot registration helper
 # ---------------------------------------------------------------------------
+
 
 def compute_registration(
     ref_img: np.ndarray,
@@ -322,7 +332,9 @@ def compute_registration(
         return None
 
     ref_h, ref_w = ref_img.shape
-    warped_corners, x_min, y_min, x_max, y_max = compute_warped_bbox(H, ref_h, ref_w, max_canvas)
+    warped_corners, x_min, y_min, x_max, y_max = compute_warped_bbox(
+        H, ref_h, ref_w, max_canvas
+    )
 
     canvas_w = x_max - x_min
     canvas_h = y_max - y_min
@@ -337,8 +349,8 @@ def compute_registration(
     )
 
     overlap_area = int(mask_overlap.sum())
-    ref_area     = int(mask_ref.sum())
-    overlap_pct  = 100.0 * overlap_area / max(1, ref_area)
+    ref_area = int(mask_ref.sum())
+    overlap_pct = 100.0 * overlap_area / max(1, ref_area)
 
     return RegistrationResult(
         H=H,

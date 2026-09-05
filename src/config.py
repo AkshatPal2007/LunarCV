@@ -70,10 +70,10 @@ LRO_LON_RANGE = (25.08, 25.41)
 # Scale ratios between sensors (Anamorphic scaling to account for LRO 2x cross-track binning)
 # Derived empirically from precise geographic overlap bounds
 SCALE_Y_LRO_TO_OHRC = 15000 / 3294  # ~4.55x
-SCALE_X_LRO_TO_OHRC = 6000 / 571    # ~10.5x
+SCALE_X_LRO_TO_OHRC = 6000 / 571  # ~10.5x
 # Processed data subdirectories
 OHRC_PROCESSED_DIR = PROCESSED_DIR / "ohrc"
-LRO_PROCESSED_DIR  = PROCESSED_DIR / "lro"
+LRO_PROCESSED_DIR = PROCESSED_DIR / "lro"
 MATCHES_PROCESSED_DIR = PROCESSED_DIR / "matches"
 
 # Create required output directories on import

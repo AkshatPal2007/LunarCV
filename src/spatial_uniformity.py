@@ -17,13 +17,13 @@ All functions operate on (x, y) float32 Nx2 arrays in image pixel coordinates.
 
 from __future__ import annotations
 
-import numpy as np
 import cv2
-
+import numpy as np
 
 # ---------------------------------------------------------------------------
 # Grid Occupancy
 # ---------------------------------------------------------------------------
+
 
 def grid_occupancy(
     pts: np.ndarray,
@@ -81,6 +81,7 @@ def grid_occupancy(
 # Convex Hull Coverage
 # ---------------------------------------------------------------------------
 
+
 def convex_hull_coverage(
     pts: np.ndarray,
     image_h: int,
@@ -113,6 +114,7 @@ def convex_hull_coverage(
 # Minimum Pairwise Separation
 # ---------------------------------------------------------------------------
 
+
 def min_pairwise_separation(pts: np.ndarray) -> float:
     """
     Compute the minimum Euclidean distance between any two match points.
@@ -141,6 +143,7 @@ def min_pairwise_separation(pts: np.ndarray) -> float:
 # ---------------------------------------------------------------------------
 # Spatially Distributed Top-K Filter
 # ---------------------------------------------------------------------------
+
 
 def spatial_topk_filter(
     pts_src: np.ndarray,
@@ -208,6 +211,7 @@ def spatial_topk_filter(
 # Full Uniformity Report
 # ---------------------------------------------------------------------------
 
+
 def spatial_uniformity_report(
     pts_src: np.ndarray,
     image_h: int,
@@ -239,8 +243,10 @@ def spatial_uniformity_report(
     min_sep = min_pairwise_separation(pts_src)
 
     print(f"--- Spatial Uniformity [{label}] ---")
-    print(f"  Grid ({n_rows}x{n_cols}): {occ['occupied_cells']}/{occ['total_cells']} cells occupied "
-          f"({occ['occupancy_pct']:.1f}%)")
+    print(
+        f"  Grid ({n_rows}x{n_cols}): {occ['occupied_cells']}/{occ['total_cells']} cells occupied "
+        f"({occ['occupancy_pct']:.1f}%)"
+    )
     print(f"  Convex Hull Coverage : {hull_pct:.1f}% of source image area")
     print(f"  Min Point Separation : {min_sep:.1f} px")
     print(f"  Grid cell counts:\n{occ['grid_counts']}")
