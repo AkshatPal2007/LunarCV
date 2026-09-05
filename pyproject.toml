@@ -16,3 +16,8 @@ dependencies = [
     "scipy>=1.17.1",
     "tqdm>=4.70.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.6",
+]
