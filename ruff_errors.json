@@ -1,0 +1,1827 @@
+[
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 52,
+      "row": 219
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\main.py",
+    "fix": null,
+    "location": {
+      "column": 51,
+      "row": 219
+    },
+    "message": "Variable `H` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 219,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "F841",
+    "end_location": {
+      "column": 20,
+      "row": 236
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\main.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "",
+          "end_location": {
+            "column": 23,
+            "row": 236
+          },
+          "location": {
+            "column": 5,
+            "row": 236
+          }
+        }
+      ],
+      "message": "Remove assignment to unused variable `su_after_magsac`"
+    },
+    "location": {
+      "column": 5,
+      "row": 236
+    },
+    "message": "Local variable `su_after_magsac` is assigned to but never used",
+    "name": "unused-variable",
+    "noqa_row": 236,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-variable"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 12,
+      "row": 281
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\main.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 281
+    },
+    "message": "Variable `H_final` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 281,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 64
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\outlier_rejection.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 64
+    },
+    "message": "Variable `M` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 64,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 73
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\outlier_rejection.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 73
+    },
+    "message": "Variable `M` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 73,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 99
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\outlier_rejection.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 99
+    },
+    "message": "Variable `H` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 99,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 36
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\subpixel.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 36
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 36,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "PT018",
+    "end_location": {
+      "column": 69,
+      "row": 36
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\subpixel.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "    assert source_image.dtype == np.uint8\r\n    assert source_image.ndim == 2\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 37
+          },
+          "location": {
+            "column": 1,
+            "row": 36
+          }
+        }
+      ],
+      "message": "Break down assertion into multiple parts"
+    },
+    "location": {
+      "column": 5,
+      "row": 36
+    },
+    "message": "Assertion should be broken down into multiple parts",
+    "name": "pytest-composite-assertion",
+    "noqa_row": 36,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/pytest-composite-assertion"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 37
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\subpixel.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 37
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 37,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "PT018",
+    "end_location": {
+      "column": 75,
+      "row": 37
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\subpixel.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "    assert reference_image.dtype == np.uint8\r\n    assert reference_image.ndim == 2\r\n",
+          "end_location": {
+            "column": 1,
+            "row": 38
+          },
+          "location": {
+            "column": 1,
+            "row": 37
+          }
+        }
+      ],
+      "message": "Break down assertion into multiple parts"
+    },
+    "location": {
+      "column": 5,
+      "row": 37
+    },
+    "message": "Assertion should be broken down into multiple parts",
+    "name": "pytest-composite-assertion",
+    "noqa_row": 37,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/pytest-composite-assertion"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 11,
+      "row": 74
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 74
+    },
+    "message": "Variable `CS` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 74,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 12,
+      "row": 80
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 80
+    },
+    "message": "Variable `MIM` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 80,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 138
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 138
+    },
+    "message": "Variable `R` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 138,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 27,
+      "row": 178
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 178
+    },
+    "message": "Variable `ORI_PEAK_RATIO` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 178,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 24,
+      "row": 183
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 183
+    },
+    "message": "Variable `gradientImg` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 183,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 24,
+      "row": 187
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 187
+    },
+    "message": "Variable `gradientAng` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 187,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 32,
+      "row": 221
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 221
+    },
+    "message": "Argument name `gradientImg` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 221,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 45,
+      "row": 221
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 34,
+      "row": 221
+    },
+    "message": "Argument name `gradientAng` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 221,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 76,
+      "row": 221
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 62,
+      "row": 221
+    },
+    "message": "Argument name `ORI_PEAK_RATIO` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 221,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 11,
+      "row": 226
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 226
+    },
+    "message": "Variable `Sa` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 226,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 12,
+      "row": 232
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 232
+    },
+    "message": "Variable `ANG` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 232,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "A001",
+    "end_location": {
+      "column": 20,
+      "row": 237
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 237
+    },
+    "message": "Variable `bin` is shadowing a Python builtin",
+    "name": "builtin-variable-shadowing",
+    "noqa_row": 237,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/builtin-variable-shadowing"
+  },
+  {
+    "cell": null,
+    "code": "A001",
+    "end_location": {
+      "column": 24,
+      "row": 243
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 243
+    },
+    "message": "Variable `bin` is shadowing a Python builtin",
+    "name": "builtin-variable-shadowing",
+    "noqa_row": 243,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/builtin-variable-shadowing"
+  },
+  {
+    "cell": null,
+    "code": "A001",
+    "end_location": {
+      "column": 24,
+      "row": 245
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 245
+    },
+    "message": "Variable `bin` is shadowing a Python builtin",
+    "name": "builtin-variable-shadowing",
+    "noqa_row": 245,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/builtin-variable-shadowing"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 78,
+      "row": 250
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 76,
+      "row": 250
+    },
+    "message": "Argument name `Sa` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 250,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 265
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 265
+    },
+    "message": "Variable `X` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 265,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 266
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 266
+    },
+    "message": "Variable `Y` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 266,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 11,
+      "row": 267
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 267
+    },
+    "message": "Variable `XX` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 267,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 15,
+      "row": 267
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 267
+    },
+    "message": "Variable `YY` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 267,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 11,
+      "row": 270
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 270
+    },
+    "message": "Variable `W1` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 270,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 271
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 271
+    },
+    "message": "Variable `W` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 271,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "A001",
+    "end_location": {
+      "column": 12,
+      "row": 273
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 273
+    },
+    "message": "Variable `bin` is shadowing a Python builtin",
+    "name": "builtin-variable-shadowing",
+    "noqa_row": 273,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/builtin-variable-shadowing"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 15,
+      "row": 279
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\RIFT2.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 279
+    },
+    "message": "Variable `wM` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 279,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 51
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\matcher_functions.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 51
+    },
+    "message": "Variable `H` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 51,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 16,
+      "row": 52
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\matcher_functions.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 52
+    },
+    "message": "Variable `matchesMask` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 52,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 67,
+      "row": 61
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\matcher_functions.py",
+    "fix": null,
+    "location": {
+      "column": 56,
+      "row": 61
+    },
+    "message": "Argument name `matchesMask` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 61,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "C408",
+    "end_location": {
+      "column": 6,
+      "row": 67
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\matcher_functions.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "{\r\n        \"matchColor\": (0, 255, 0),  # draw matches in green color\r\n        \"singlePointColor\": None,\r\n        \"matchesMask\": matchesMask,  # draw only inliers\r\n        \"flags\": 2,\r\n    }",
+          "end_location": {
+            "column": 6,
+            "row": 67
+          },
+          "location": {
+            "column": 19,
+            "row": 62
+          }
+        }
+      ],
+      "message": "Rewrite as a literal"
+    },
+    "location": {
+      "column": 19,
+      "row": 62
+    },
+    "message": "Unnecessary `dict()` call (rewrite as a literal)",
+    "name": "unnecessary-collection-call",
+    "noqa_row": 62,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unnecessary-collection-call"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 20,
+      "row": 34
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 34
+    },
+    "message": "Argument name `minWaveLength` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 34,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 18,
+      "row": 36
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 36
+    },
+    "message": "Argument name `sigmaOnf` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 36,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 15,
+      "row": 38
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 38
+    },
+    "message": "Argument name `cutOff` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 38,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 19,
+      "row": 40
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 40
+    },
+    "message": "Argument name `noiseMethod` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 40,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 7,
+      "row": 144
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 144
+    },
+    "message": "Variable `IM` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 144,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 7,
+      "row": 147
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 147
+    },
+    "message": "Variable `EO` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 147,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 7,
+      "row": 148
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 148
+    },
+    "message": "Variable `PC` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 148,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 12,
+      "row": 158
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 158
+    },
+    "message": "Variable `EnergyV` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 158,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 161
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 161
+    },
+    "message": "Variable `pcSum` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 161,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 18,
+      "row": 218
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 218
+    },
+    "message": "Variable `logGaborDenom` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 218,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 13,
+      "row": 219
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 219
+    },
+    "message": "Variable `logGabor` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 219,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 21,
+      "row": 228
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 228
+    },
+    "message": "Variable `logRadOverFo` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 228,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 24,
+      "row": 268
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 268
+    },
+    "message": "Variable `sumE_ThisOrient` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 268,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 24,
+      "row": 269
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 269
+    },
+    "message": "Variable `sumO_ThisOrient` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 269,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 25,
+      "row": 270
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 270
+    },
+    "message": "Variable `sumAn_ThisOrient` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 270,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 15,
+      "row": 271
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 271
+    },
+    "message": "Variable `Energy` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 271,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 16,
+      "row": 273
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 273
+    },
+    "message": "Variable `EOscale` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 273,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 19,
+      "row": 281
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 281
+    },
+    "message": "Variable `thisEO` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 281,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 15,
+      "row": 284
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 284
+    },
+    "message": "Variable `An` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 284,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 29,
+      "row": 287
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 287
+    },
+    "message": "Variable `sumAn_ThisOrient` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 287,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 28,
+      "row": 290
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 290
+    },
+    "message": "Variable `sumE_ThisOrient` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 290,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 28,
+      "row": 293
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 293
+    },
+    "message": "Variable `sumO_ThisOrient` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 293,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 22,
+      "row": 308
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 308
+    },
+    "message": "Variable `maxAn` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 308,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 22,
+      "row": 312
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 312
+    },
+    "message": "Variable `maxAn` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 312,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 16,
+      "row": 325
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 325
+    },
+    "message": "Variable `XEnergy` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 325,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 331
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 331
+    },
+    "message": "Variable `MeanE` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 331,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 332
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 332
+    },
+    "message": "Variable `MeanO` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 332,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 340
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 340
+    },
+    "message": "Variable `E` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 340,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 341
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 341
+    },
+    "message": "Variable `O` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 341,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 14,
+      "row": 341
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 341
+    },
+    "message": "Ambiguous variable name: `O`",
+    "name": "ambiguous-variable-name",
+    "noqa_row": 341,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 19,
+      "row": 342
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 342
+    },
+    "message": "Variable `Energy` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 342,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 367
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 367
+    },
+    "message": "Variable `T` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 367,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 21,
+      "row": 375
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 375
+    },
+    "message": "Variable `totalTau` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 375,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 31,
+      "row": 380
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 380
+    },
+    "message": "Variable `EstNoiseEnergyMean` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 380,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 32,
+      "row": 381
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 381
+    },
+    "message": "Variable `EstNoiseEnergySigma` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 381,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 384
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 384
+    },
+    "message": "Variable `T` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 384,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 15,
+      "row": 388
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 388
+    },
+    "message": "Variable `Energy` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 388,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 15,
+      "row": 403
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 403
+    },
+    "message": "Variable `thisPC` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 403,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 404
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 404
+    },
+    "message": "Variable `pcSum` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 404,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 429
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 429
+    },
+    "message": "Variable `M` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 429,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 9,
+      "row": 438
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\phasecong.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 438
+    },
+    "message": "Variable `OddV` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 438,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "B028",
+    "end_location": {
+      "column": 18,
+      "row": 12
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\tools.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": ", stacklevel=2",
+          "end_location": {
+            "column": 47,
+            "row": 15
+          },
+          "location": {
+            "column": 47,
+            "row": 15
+          }
+        }
+      ],
+      "message": "Set `stacklevel=2`"
+    },
+    "location": {
+      "column": 5,
+      "row": 12
+    },
+    "message": "No explicit `stacklevel` keyword argument found",
+    "name": "no-explicit-stacklevel",
+    "noqa_row": 15,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/no-explicit-stacklevel"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 31,
+      "row": 90
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\tools.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 90
+    },
+    "message": "Argument name `compute_P` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 90,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 142
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\tools.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 142
+    },
+    "message": "Variable `S` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 142,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 10,
+      "row": 146
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\third_party\\rift2\\phase_congruency\\tools.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 146
+    },
+    "message": "Variable `P` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 146,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 72
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 72
+    },
+    "message": "Variable `H` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 72,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 18,
+      "row": 86
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 86
+    },
+    "message": "Argument name `H` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 86,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N803",
+    "end_location": {
+      "column": 18,
+      "row": 163
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 163
+    },
+    "message": "Argument name `H` should be lowercase",
+    "name": "invalid-argument-name",
+    "noqa_row": 163,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/invalid-argument-name"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 195
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 195
+    },
+    "message": "Variable `T` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 195,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 11,
+      "row": 196
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 196
+    },
+    "message": "Variable `H_warp` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 196,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 6,
+      "row": 330
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 330
+    },
+    "message": "Variable `H` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 330,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 11,
+      "row": 342
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 342
+    },
+    "message": "Variable `H_warp` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 342,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "N806",
+    "end_location": {
+      "column": 14,
+      "row": 342
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 342
+    },
+    "message": "Variable `T` in function should be lowercase",
+    "name": "non-lowercase-variable-in-function",
+    "noqa_row": 342,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/non-lowercase-variable-in-function"
+  },
+  {
+    "cell": null,
+    "code": "F841",
+    "end_location": {
+      "column": 12,
+      "row": 347
+    },
+    "filename": "C:\\Users\\sagar\\prog\\LunarCV\\src\\transform.py",
+    "fix": {
+      "applicability": "unsafe",
+      "edits": [
+        {
+          "content": "",
+          "end_location": {
+            "column": 15,
+            "row": 347
+          },
+          "location": {
+            "column": 5,
+            "row": 347
+          }
+        }
+      ],
+      "message": "Remove assignment to unused variable `checker`"
+    },
+    "location": {
+      "column": 5,
+      "row": 347
+    },
+    "message": "Local variable `checker` is assigned to but never used",
+    "name": "unused-variable",
+    "noqa_row": 347,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unused-variable"
+  }
+]

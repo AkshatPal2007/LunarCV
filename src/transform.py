@@ -344,9 +344,6 @@ def compute_registration(
     )
 
     overlay, mask_overlap = make_overlay(warped_ref, warped_src, mask_ref, mask_src)
-    checker = make_checkerboard(
-        warped_ref, warped_src, mask_ref, mask_src, mask_overlap, checkerboard_grid_size
-    )
 
     overlap_area = int(mask_overlap.sum())
     ref_area = int(mask_ref.sum())

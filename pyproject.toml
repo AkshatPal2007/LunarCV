@@ -30,3 +30,9 @@ ignore = ["E501"]  # Ignore line length for now
 # Test files often have unused variables (checking exceptions, etc.)
 "tests/**/*.py" = ["F841", "S101", "S105", "S106", "S107", "S311", "BLE001", "PLR2004"]
 "*/tests/**/*.py" = ["F841", "S101", "S105", "S106", "S107", "S311", "BLE001", "PLR2004"]
+# Mathematical/CV code uses standard matrix notation (H, M, T, R, etc.)
+"src/main.py" = ["N806"]
+"src/outlier_rejection.py" = ["N806"]
+"src/transform.py" = ["N806", "N803"]
+# Third-party code should not be modified
+"src/third_party/**/*.py" = ["N806", "N803", "A001", "E741", "B028", "C408"]

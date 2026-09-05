@@ -233,7 +233,7 @@ def main() -> None:
 
     # Spatial uniformity — report on MAGSAC++ inliers (our differentiator vs. the paper)
     h_src, w_src = ohrc_scaled.shape
-    su_after_magsac = spatial_uniformity_report(
+    spatial_uniformity_report(
         mkpts_src_clean, h_src, w_src, label="MAGSAC++ inliers", n_rows=4, n_cols=4
     )
 

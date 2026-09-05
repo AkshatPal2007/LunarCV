@@ -33,8 +33,14 @@ def refine_matches(
         pts_ref_refined : ndarray (N, 2)
         stats : dict containing metrics
     """
-    assert source_image.dtype == np.uint8 and source_image.ndim == 2
-    assert reference_image.dtype == np.uint8 and reference_image.ndim == 2
+    if source_image.dtype != np.uint8:
+        raise TypeError(f"source_image must be uint8, got {source_image.dtype}")
+    if source_image.ndim != 2:
+        raise ValueError(f"source_image must be 2D, got {source_image.ndim}D")
+    if reference_image.dtype != np.uint8:
+        raise TypeError(f"reference_image must be uint8, got {reference_image.dtype}")
+    if reference_image.ndim != 2:
+        raise ValueError(f"reference_image must be 2D, got {reference_image.ndim}D")
 
     pts_src = source_points.copy().astype(np.float32)
     pts_ref = reference_points.copy().astype(np.float32)
