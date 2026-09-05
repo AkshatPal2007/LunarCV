@@ -22,25 +22,19 @@ install:
 	cd frontend && npm install
 
 dev-backend:
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 dev-frontend:
 	cd frontend && npm run dev
 
 dev:
-	@echo "Starting backend and frontend in parallel..."
-	@echo "Backend: http://localhost:8000"
-	@echo "Frontend: http://localhost:5173"
-	@(trap 'kill 0' SIGINT; \
-		cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 & \
-		cd frontend && npm run dev & \
-		wait)
+	python scripts/dev.py
 
 lint:
-	cd backend && ruff check .
+	cd backend && uv run ruff check .
 
 test:
-	cd backend && pytest
+	cd backend && uv run pytest
 
 clean:
 	@echo "Cleaning generated files..."

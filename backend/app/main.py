@@ -2,6 +2,11 @@
 FastAPI application entry point for LunarCV.
 """
 
+import warnings
+
+# Suppress torch.jit.script deprecation warning from dependencies
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch.jit._script")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
