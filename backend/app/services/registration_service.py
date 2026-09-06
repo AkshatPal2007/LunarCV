@@ -12,6 +12,7 @@ import numpy as np
 
 from app.config import settings
 from app.schemas.common import JobStatus
+from app.services.image_loader import ImageLoadError, load_image_auto
 from lunarcv.io.raster import load_ohrc_memmap, load_lro_nac_memmap, extract_patch
 from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 from lunarcv.registration.outlier_rejection import magsac_filter
@@ -22,19 +23,6 @@ from lunarcv.registration.transform import (
     make_overlay,
     make_checkerboard,
 )
-
-
-def percentile_stretch_uint8(
-    img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0
-) -> np.ndarray:
-    """Minimal normalization: robust percentile stretch to uint8 [0, 255]."""
-    v_min, v_max = np.percentile(img, (p_low, p_high))
-    if v_max <= v_min:
-        v_max = v_min + 1.0
-    stretched = np.clip(
-        (img.astype(np.float32) - v_min) / (v_max - v_min) * 255.0, 0, 255
-    )
-    return stretched.astype(np.uint8)
 
 
 async def run_registration(
@@ -55,27 +43,37 @@ async def run_registration(
         results_dir = settings.RESULTS_DIR / job_id
         results_dir.mkdir(parents=True, exist_ok=True)
 
-        # Load images (simplified - assumes they're already normalized)
-        # In production, you'd detect format and handle .IMG, .TIF, etc.
-        source_img = cv2.imread(str(source_path), cv2.IMREAD_GRAYSCALE)
-        reference_img = cv2.imread(str(reference_path), cv2.IMREAD_GRAYSCALE)
-
-        if source_img is None or reference_img is None:
-            raise ValueError("Failed to load images")
-
-        # Normalize
+        # Load images with auto-detection
         job_store[job_id]["progress"] = 10
-        job_store[job_id]["message"] = "Normalizing images..."
+        job_store[job_id]["message"] = "Loading and normalizing images..."
 
-        source_norm = percentile_stretch_uint8(source_img)
-        reference_norm = percentile_stretch_uint8(reference_img)
+        try:
+            source_img, source_meta = load_image_auto(
+                source_path, max_dimension=settings.MAX_IMAGE_DIMENSION
+            )
+            reference_img, ref_meta = load_image_auto(
+                reference_path, max_dimension=settings.MAX_IMAGE_DIMENSION
+            )
+        except ImageLoadError as e:
+            raise ValueError(f"Image loading failed: {e}")
+
+        job_store[job_id]["message"] = (
+            f"Loaded {source_meta['format']} and {ref_meta['format']} images"
+        )
+
+        # Images are already normalized to uint8 by load_image_auto
+        source_norm = source_img
+        reference_norm = reference_img
 
         # Feature matching
         job_store[job_id]["progress"] = 30
         job_store[job_id]["message"] = f"Running {matcher} feature matching..."
 
         if matcher == "lightglue":
-            feature_matcher = LightGlueFeatureMatcher(max_dim=1500, max_keypoints=2048)
+            feature_matcher = LightGlueFeatureMatcher(
+                max_dim=settings.LIGHTGLUE_MAX_DIM,
+                max_keypoints=settings.LIGHTGLUE_MAX_KEYPOINTS,
+            )
             mkpts_src, mkpts_ref, conf = feature_matcher.match(
                 source_norm, reference_norm, conf_threshold=0.0
             )
@@ -87,11 +85,17 @@ async def run_registration(
         job_store[job_id]["message"] = "Running outlier rejection..."
 
         mkpts_src_clean, mkpts_ref_clean, conf_clean, H, mask = magsac_filter(
-            mkpts_src, mkpts_ref, conf, model="homography", ransac_reproj_threshold=4.0
+            mkpts_src,
+            mkpts_ref,
+            conf,
+            model="homography",
+            ransac_reproj_threshold=settings.MAGSAC_REPROJ_THRESHOLD,
         )
 
-        if H is None or len(mkpts_src_clean) < 4:
-            raise ValueError("Insufficient inliers found")
+        if H is None or len(mkpts_src_clean) < settings.MIN_INLIERS:
+            raise ValueError(
+                f"Insufficient inliers found: {len(mkpts_src_clean)} < {settings.MIN_INLIERS}"
+            )
 
         # Sub-pixel refinement
         job_store[job_id]["progress"] = 75
@@ -190,12 +194,44 @@ async def run_registration(
         job_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
         job_store[job_id]["metrics"] = metrics
 
-    except Exception as e:
-        # Mark failed
+    except ImageLoadError as e:
+        # Image format or loading error
         job_store[job_id]["status"] = JobStatus.FAILED
         job_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
-        job_store[job_id]["error"] = str(e)
-        job_store[job_id]["message"] = f"Failed: {str(e)}"
+        job_store[job_id]["error"] = f"Image format error: {e.user_message}"
+        job_store[job_id]["message"] = f"Failed: Image format error"
+        print(f"[ERROR] Job {job_id} failed - ImageLoadError: {e}")
+    except ValueError as e:
+        # Registration computation error
+        error_str = str(e)
+        job_store[job_id]["status"] = JobStatus.FAILED
+        job_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
+
+        if "Insufficient inliers" in error_str:
+            job_store[job_id]["error"] = (
+                "Images are too different - no reliable correspondences found. "
+                "Try images with more overlap or similar content."
+            )
+        elif "Failed to compute" in error_str:
+            job_store[job_id]["error"] = (
+                "Registration computation failed. "
+                "The images may not have enough common features."
+            )
+        else:
+            job_store[job_id]["error"] = error_str
+
+        job_store[job_id]["message"] = f"Failed: {job_store[job_id]['error']}"
+        print(f"[ERROR] Job {job_id} failed - ValueError: {e}")
+    except Exception as e:
+        # Unexpected error
+        job_store[job_id]["status"] = JobStatus.FAILED
+        job_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        job_store[job_id]["error"] = (
+            "Internal processing error. Please check image formats and try again."
+        )
+        job_store[job_id]["message"] = "Failed: Internal error"
+        print(f"[ERROR] Job {job_id} failed - Unexpected: {e}")
+        traceback.print_exc()
 
         # Log full traceback for debugging
         print(f"Registration job {job_id} failed:")

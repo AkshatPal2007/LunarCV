@@ -10,6 +10,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config import settings
 from app.schemas.registration import UploadResponse
+from app.services.validation_service import ValidationError, validate_uploaded_file
 
 router = APIRouter()
 
@@ -45,6 +46,16 @@ async def upload_image(file: UploadFile = File(...)):
 
     with open(save_path, "wb") as f:
         f.write(content)
+
+    # Validate uploaded file
+    validation = validate_uploaded_file(save_path, max_size_mb=1024)
+    if not validation["valid"]:
+        save_path.unlink()  # Delete invalid file
+        raise HTTPException(status_code=400, detail=validation["error"])
+
+    # Log warnings if any
+    for warning in validation.get("warnings", []):
+        print(f"[WARNING] Upload validation: {warning}")
 
     return UploadResponse(
         file_id=file_id,

@@ -28,11 +28,20 @@ class Settings(BaseSettings):
 
     # Storage paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
+    RAW_DIR: Path = BASE_DIR / "data" / "raw"
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     RESULTS_DIR: Path = BASE_DIR / "data" / "results"
 
     # Processing
     CLEANUP_AFTER_HOURS: int = 24  # Auto-delete results after 24 hours
+
+    # Processing parameters
+    MAX_IMAGE_DIMENSION: int = 8192
+    LIGHTGLUE_MAX_DIM: int = 1500
+    LIGHTGLUE_MAX_KEYPOINTS: int = 2048
+    MAGSAC_REPROJ_THRESHOLD: float = 4.0
+    MIN_INLIERS: int = 4
+    MAX_UPLOAD_SIZE_MB: int = 1024
 
     class Config:
         case_sensitive = True
@@ -41,5 +50,6 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Ensure directories exist
+settings.RAW_DIR.mkdir(parents=True, exist_ok=True)
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 settings.RESULTS_DIR.mkdir(parents=True, exist_ok=True)

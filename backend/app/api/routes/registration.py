@@ -17,6 +17,7 @@ from app.schemas.registration import (
 )
 from app.schemas.common import JobStatus
 from app.services.registration_service import run_registration
+from app.services.validation_service import ValidationError, validate_registration_pair
 
 router = APIRouter()
 
@@ -33,14 +34,27 @@ async def create_registration_job(
 
     Returns a job_id to poll for status and results.
     """
-    # Validate that uploaded files exist
-    source_files = list(settings.UPLOAD_DIR.glob(f"{request.source_image_id}.*"))
-    reference_files = list(settings.UPLOAD_DIR.glob(f"{request.reference_image_id}.*"))
+    # Validate that uploaded files exist - check both raw and uploads directories
+    source_files = list(settings.RAW_DIR.glob(f"{request.source_image_id}.*")) + list(
+        settings.UPLOAD_DIR.glob(f"{request.source_image_id}.*")
+    )
+    reference_files = list(
+        settings.RAW_DIR.glob(f"{request.reference_image_id}.*")
+    ) + list(settings.UPLOAD_DIR.glob(f"{request.reference_image_id}.*"))
 
     if not source_files:
         raise HTTPException(status_code=404, detail="Source image not found")
     if not reference_files:
         raise HTTPException(status_code=404, detail="Reference image not found")
+
+    # Validate image pair before creating job
+    validation = validate_registration_pair(source_files[0], reference_files[0])
+    if not validation["valid"]:
+        raise HTTPException(status_code=400, detail=validation["error"])
+
+    # Log warnings if any
+    for warning in validation.get("warnings", []):
+        print(f"[WARNING] Registration validation: {warning}")
 
     # Create job
     job_id = str(uuid.uuid4())
