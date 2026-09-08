@@ -9,3 +9,4 @@ try:
     __all__ = ["Matcher", "LightGlueFeatureMatcher", "EnsembleMatcher", "RIFT2Matcher"]
 except ImportError:
     __all__ = ["Matcher", "LightGlueFeatureMatcher", "EnsembleMatcher"]
+from .adaptive import adaptive_chunked_match

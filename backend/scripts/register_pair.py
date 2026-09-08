@@ -23,6 +23,10 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from lunarcv.config import (
     FIGURES_DIR,
     LRO_GSD,
@@ -43,6 +47,7 @@ from lunarcv.io.raster import (
     print_patch_stats,
 )
 from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
+from lunarcv.matching.adaptive import adaptive_chunked_match
 from lunarcv.registration.outlier_rejection import magsac_filter, print_match_stats
 from lunarcv.registration.spatial_uniformity import spatial_uniformity_report
 from lunarcv.registration.subpixel import refine_matches
@@ -152,65 +157,25 @@ def main() -> None:
     ohrc_norm = percentile_stretch_uint8(ohrc_raw, p_low=1.0, p_high=99.0)
     lro_norm = percentile_stretch_uint8(lro_raw, p_low=1.0, p_high=99.0)
 
-    # Anamorphic scale OHRC to match LRO's 2x cross-track binning
-    target_w = int(round(ohrc_norm.shape[1] / SCALE_X_LRO_TO_OHRC))
-    target_h = int(round(ohrc_norm.shape[0] / SCALE_Y_LRO_TO_OHRC))
-    ohrc_scaled = cv2.resize(
-        ohrc_norm, (target_w, target_h), interpolation=cv2.INTER_AREA
-    )
-
-    print(f"  OHRC scaled to LRO: {ohrc_norm.shape} -> {ohrc_scaled.shape}")
-    print(f"  LRO reference patch   : {lro_norm.shape}")
-
     # ------------------------------------------------------------------
-    # 4. Feature Matching (Chunked SuperPoint+LightGlue)
+    # 4. Feature Matching (Adaptive Scale Chunking)
     # ------------------------------------------------------------------
-    print(
-        "\n[4/5] Running SuperPoint+LightGlue feature matching in overlapping chunks..."
-    )
+    print("\n[4/5] Running Adaptive Scale Chunked Matching (LightGlue)...")
     matcher = LightGlueFeatureMatcher(max_dim=1500, max_keypoints=2048)
-
-    n_chunks = 3
-    overlap = 400
-    h_src, w_src = ohrc_scaled.shape
-    h_ref, w_ref = lro_norm.shape
-    step_src = (h_src - overlap) // n_chunks
-    step_ref = (h_ref - overlap) // n_chunks
-
-    all_mkpts_src, all_mkpts_ref, all_conf = [], [], []
-
-    for i in range(n_chunks):
-        y1_src = i * step_src
-        y2_src = y1_src + step_src + overlap if i < n_chunks - 1 else h_src
-        y1_ref = i * step_ref
-        y2_ref = y1_ref + step_ref + overlap if i < n_chunks - 1 else h_ref
-
-        patch_src = ohrc_scaled[y1_src:y2_src, :]
-        patch_ref = lro_norm[y1_ref:y2_ref, :]
-
-        print(
-            f"  Chunk {i + 1}/{n_chunks}: OHRC [{y1_src}:{y2_src}], LRO [{y1_ref}:{y2_ref}]"
-        )
-        pts_src, pts_ref, conf = matcher.match(patch_src, patch_ref, conf_threshold=0.0)
-
-        if len(pts_src) > 0:
-            pts_src[:, 1] += y1_src
-            pts_ref[:, 1] += y1_ref
-            all_mkpts_src.append(pts_src)
-            all_mkpts_ref.append(pts_ref)
-            all_conf.append(conf)
-
-    if len(all_mkpts_src) > 0:
-        mkpts_src = np.vstack(all_mkpts_src)
-        mkpts_ref = np.vstack(all_mkpts_ref)
-        conf = np.concatenate(all_conf)
-    else:
-        mkpts_src = np.empty((0, 2), dtype=np.float32)
-        mkpts_ref = np.empty((0, 2), dtype=np.float32)
-        conf = np.empty((0,), dtype=np.float32)
-
+    
+    mkpts_src, mkpts_ref, adaptive_results, conf = adaptive_chunked_match(
+        matcher, ohrc_norm, lro_norm, 
+        sx_base=SCALE_X_LRO_TO_OHRC, sy_base=SCALE_Y_LRO_TO_OHRC,
+        n_chunks=12, overlap_frac=0.16, dedup_radius=20.0
+    )
+    
+    print(f"  Adaptive matching returned {len(mkpts_src)} unique control points.")
+    if len(mkpts_src) < 4:
+        print("\n❌ Insufficient control points.")
+        return
+        
     print_match_stats(
-        mkpts_src, mkpts_ref, conf, label="SuperPoint+LightGlue (All Chunks)"
+        mkpts_src, mkpts_ref, conf, label="Adaptive Scale LightGlue"
     )
 
     # ------------------------------------------------------------------
@@ -232,10 +197,16 @@ def main() -> None:
         print("\n❌ Insufficient inliers found to fit homography.")
         return
 
-    # Spatial uniformity — report on MAGSAC++ inliers (our differentiator vs. the paper)
-    h_src, w_src = ohrc_scaled.shape
+    # Spatial uniformity filter
+    h_src, w_src = ohrc_norm.shape
+    from lunarcv.registration.spatial_uniformity import spatial_topk_filter
+    mkpts_src_clean, mkpts_ref_clean, conf_clean = spatial_topk_filter(
+        mkpts_src_clean, mkpts_ref_clean, conf_clean,
+        h_src, w_src, n_rows=4, n_cols=4, top_k_per_cell=10
+    )
+    
     spatial_uniformity_report(
-        mkpts_src_clean, h_src, w_src, label="MAGSAC++ inliers", n_rows=4, n_cols=4
+        mkpts_src_clean, h_src, w_src, label="Filtered inliers", n_rows=4, n_cols=4
     )
 
     # ------------------------------------------------------------------
@@ -243,7 +214,7 @@ def main() -> None:
     # ------------------------------------------------------------------
     print("\n[6/6] Running Sub-Pixel Refinement (win_size=2)...")
     mkpts_src_ref, mkpts_ref_ref, stats = refine_matches(
-        ohrc_scaled,
+        ohrc_norm,
         lro_norm,
         mkpts_src_clean,
         mkpts_ref_clean,
@@ -270,7 +241,7 @@ def main() -> None:
     # Re-estimate final homography + warp via transform.py
     reg = compute_registration(
         ref_img=lro_norm,
-        src_img=ohrc_scaled,
+        src_img=ohrc_norm,
         pts_ref=mkpts_ref_ref,
         pts_src=mkpts_src_ref,
     )
@@ -304,7 +275,7 @@ def main() -> None:
 
     # Save match visualisation figure
     draw_connected_matches(
-        ohrc_scaled,
+        ohrc_norm,
         lro_norm,
         mkpts_src_ref,
         mkpts_ref_ref,
@@ -355,8 +326,14 @@ def main() -> None:
 
     # 1d. Diagnostic figure
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-    axes[0, 0].imshow(ohrc_scaled, cmap="gray")
-    axes[0, 0].set_title("Original OHRC")
+    
+    # Render OHRC scaled for display only to match proportions
+    display_w = int(round(ohrc_norm.shape[1] / SCALE_X_LRO_TO_OHRC))
+    display_h = int(round(ohrc_norm.shape[0] / SCALE_Y_LRO_TO_OHRC))
+    ohrc_display = cv2.resize(ohrc_norm, (display_w, display_h))
+    
+    axes[0, 0].imshow(ohrc_display, cmap="gray")
+    axes[0, 0].set_title("Original OHRC (scaled for display)")
     axes[0, 0].axis("off")
 
     axes[0, 1].imshow(lro_norm, cmap="gray")
