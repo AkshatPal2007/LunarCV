@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 
 
 def match_keypoints_nn(des1, des2, kp1, kp2, lowes_ratio=0.75, mutual=True):
@@ -74,4 +73,7 @@ def draw_matches(img1, img2, kp1, kp2, mutual_matches, matchesMask):
     print(f"Number of matches with N.N : {len(mutual_matches)}")
     print(f"Number of inliers after MAGSAC: {num_inliers}")
     print(f"Number of outliers after MAGSAC: {num_outliers}")
-    plt.imshow(img3), plt.show()
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    plt.imshow(img3)
