@@ -22,6 +22,7 @@ dependencies = [
     "tqdm>=4.70.0",
     "torch>=2.0.0",
     "lightglue @ git+https://github.com/cvg/LightGlue.git",
+    "joblib>=1.6.0",
 ]
 
 [dependency-groups]

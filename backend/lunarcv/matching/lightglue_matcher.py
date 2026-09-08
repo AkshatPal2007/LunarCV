@@ -13,8 +13,10 @@ import torch
 from lightglue import LightGlue, SuperPoint
 from lightglue.utils import rbd
 
+from lunarcv.matching.matcher import Matcher
 
-class LightGlueFeatureMatcher:
+
+class LightGlueFeatureMatcher(Matcher):
     """
     Wrapper around official CVG SuperPoint + LightGlue for LunarCV.
     Maintains an identical interface to LoFTRMatcher.

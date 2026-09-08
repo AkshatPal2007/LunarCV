@@ -1,0 +1,11 @@
+{
+    "candidate_matches": 107,
+    "inlier_matches": 6,
+    "inlier_ratio": 0.056074766355140186,
+    "rmse_forward_px": 2.1039475221611443,
+    "rmse_backward_px": 2.2579186816350334,
+    "spatial_uniformity_cv": 1.8559214542766738,
+    "overlap_pct": 82.40377604258843,
+    "execution_time_s": 4.038750171661377,
+    "quality_decision": "REJECT (RMSE too high)"
+}
