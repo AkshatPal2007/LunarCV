@@ -23,6 +23,7 @@ dependencies = [
     "torch>=2.0.0",
     "lightglue @ git+https://github.com/cvg/LightGlue.git",
     "joblib>=1.6.0",
+    "defusedxml>=0.7.1",
 ]
 
 [dependency-groups]

@@ -1,0 +1,59 @@
+{
+  "manifest_version": "1.0",
+  "protocol_version": "priority-0-v1",
+  "seed": 20260910,
+  "pair_split_unit": "scene",
+  "metrics": {
+    "primary_accuracy_metric": "heldout_rmse_px",
+    "secondary_accuracy_metrics": [
+      "heldout_median_error_px",
+      "heldout_p95_error_px",
+      "independent_control_point_rmse_px"
+    ],
+    "fit_metrics_are_not_accuracy": true,
+    "spatial_uniformity": {
+      "grid": [4, 4],
+      "primary": "coefficient_of_variation",
+      "secondary": ["occupancy_pct", "convex_hull_coverage_pct"]
+    },
+    "required_provenance": [
+      "content_sha256",
+      "image_shape",
+      "sensor",
+      "product_id",
+      "matcher",
+      "parameters",
+      "dataset_split"
+    ]
+  },
+  "pairs": [
+    {
+      "pair_id": "ohrc-lro-nac-m1350459544re-baseline",
+      "split": "test",
+      "source_sensor": "Chandrayaan-2 OHRC",
+      "reference_sensor": "LRO NAC",
+      "source_product_id": "ch2_ohr_ncp_20210401T2357376656_d_img_d18",
+      "reference_product_id": "M1350459544RE",
+      "source_path": "data/raw/tmc2/baseline/data/calibrated/20210401/ch2_ohr_ncp_20210401T2357376656_d_img_d18.img",
+      "reference_path": "data/raw/lro/M1350459544RE.IMG",
+      "source_shape": [90148, 12000],
+      "reference_shape": [52224, 2532],
+      "source_gsd_m": [0.26, 0.26],
+      "reference_gsd_m": [1.55, 1.66],
+      "source_footprint": {
+        "min_lat": -13.889,
+        "max_lat": -13.055,
+        "min_lon": 25.128,
+        "max_lon": 25.246
+      },
+      "reference_footprint": {
+        "min_lat": -15.88,
+        "max_lat": -13.0,
+        "min_lon": 25.08,
+        "max_lon": 25.41
+      },
+      "ground_truth_method": "pending independent crater or metadata control points",
+      "ground_truth_status": "not_available"
+    }
+  ]
+}

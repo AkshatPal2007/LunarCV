@@ -68,10 +68,19 @@ LRO_GSD = 1.60  # meters / pixel (1.55m cross-track, 1.66m along-track)
 LRO_LAT_RANGE = (-15.88, -13.00)
 LRO_LON_RANGE = (25.08, 25.41)
 
-# Scale ratios between sensors (Anamorphic scaling to account for LRO 2x cross-track binning)
-# Derived empirically from precise geographic overlap bounds
-SCALE_Y_LRO_TO_OHRC = 15000 / 3294  # ~4.55x
-SCALE_X_LRO_TO_OHRC = 6000 / 571  # ~10.5x
+# Isotropic scale ratio between sensors (GSD-based)
+# OHRC is ~6.15x higher resolution than LRO NAC in BOTH dimensions.
+SCALE_LRO_TO_OHRC = LRO_GSD / OHRC_GSD  # ~6.154x isotropic
+
+# Calibrated geographic overlap bounding boxes for the baseline pair:
+OHRC_OVERLAP_PATCH_ROWS = (30000, 45000)
+OHRC_OVERLAP_PATCH_COLS = (2000, 8000)
+LRO_OVERLAP_PATCH_ROWS = (5810, 8781)
+LRO_OVERLAP_PATCH_COLS = (485, 1008)
+
+# Legacy aliases for backward compatibility (both now isotropic)
+SCALE_Y_LRO_TO_OHRC = SCALE_LRO_TO_OHRC
+SCALE_X_LRO_TO_OHRC = SCALE_LRO_TO_OHRC
 # Processed data subdirectories
 OHRC_PROCESSED_DIR = PROCESSED_DIR / "ohrc"
 LRO_PROCESSED_DIR = PROCESSED_DIR / "lro"

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     RAW_DIR: Path = BASE_DIR / "data" / "raw"
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     RESULTS_DIR: Path = BASE_DIR / "data" / "results"
+    EVALUATION_MANIFEST_PATH: Path = BASE_DIR / "data" / "metadata" / "evaluation_manifest.json"
 
     # Processing
     CLEANUP_AFTER_HOURS: int = 24  # Auto-delete results after 24 hours

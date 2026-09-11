@@ -22,28 +22,29 @@ import logging
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
 
 from app.config import settings
 from app.schemas.common import JobStatus
+from app.services.image_loader import ImageLoadError, load_image_auto
+from lunarcv.evaluation.manifest import EvaluationManifest, build_run_provenance
 from lunarcv.evaluation.metrics import (
     RegistrationMetrics,
     calculate_rmse,
+    evaluate_homography_holdout,
     evaluate_spatial_uniformity,
     quality_gate,
 )
 from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
-from lunarcv.matching.ensemble import EnsembleMatcher
-from lunarcv.registration.outlier_rejection import magsac_filter, print_match_stats
+from lunarcv.registration.outlier_rejection import magsac_filter
 from lunarcv.registration.spatial_uniformity import spatial_topk_filter
 from lunarcv.registration.subpixel import refine_matches
 from lunarcv.registration.transform import (
     compute_registration,
-    make_overlay,
     make_checkerboard,
+    make_overlay,
 )
 
 logger = logging.getLogger(__name__)
@@ -70,9 +71,10 @@ def _load_gray(path: Path) -> np.ndarray:
     Supports: PNG, JPEG, BMP, TIFF, or any OpenCV-readable format.
     Raises ValueError if the file cannot be read.
     """
-    img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        raise ValueError(f"Cannot read image: {path}")
+    try:
+        img, _ = load_image_auto(path, max_dimension=settings.MAX_IMAGE_DIMENSION)
+    except ImageLoadError as exc:
+        raise ValueError(str(exc)) from exc
     return img
 
 
@@ -125,6 +127,28 @@ def run_registration(
         h_src, w_src = src_img.shape
         h_ref, w_ref = ref_img.shape
 
+        evaluation_manifest = EvaluationManifest.load(settings.EVALUATION_MANIFEST_PATH)
+        run_provenance = build_run_provenance(
+            manifest=evaluation_manifest,
+            source_path=source_path,
+            reference_path=reference_path,
+            source_shape=(h_src, w_src),
+            reference_shape=(h_ref, w_ref),
+            matcher=matcher,
+            parameters={
+                "normalization": "percentile_stretch",
+                "percentile_range": [1.0, 99.0],
+                "strip_height": "max(image_height) / 10 clamped to [256, 2048]",
+                "strip_overlap": "max(64, strip_height / 8)",
+                "magsac_model": "homography",
+                "magsac_reprojection_threshold_px": 4.0,
+                "spatial_grid": [4, 4],
+                "spatial_top_k_per_cell": 3,
+                "refinement": "cornerSubPix",
+                "transform_fit": "least_squares_homography",
+            },
+        )
+
         results_dir = settings.RESULTS_DIR / job_id
         results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -132,7 +156,7 @@ def run_registration(
 
         # ── 2. Build matcher(s) ──────────────────────────────────────────────
         lightglue = LightGlueFeatureMatcher(max_dim=1500, max_keypoints=2048)
-        rift2: Optional[RIFT2Matcher] = None
+        rift2: RIFT2Matcher | None = None
         if _RIFT2_AVAILABLE and matcher in ("rift2", "ensemble"):
             try:
                 rift2 = RIFT2Matcher()
@@ -142,23 +166,23 @@ def run_registration(
         # ── 3. Dynamic vertical-strip tiling (no hardcoded lat/lon) ─────────
         # Strip height is chosen to be 1/10 the taller image height, clamped
         # to a sensible range [256, 2048] px.
-        STRIP_H = int(np.clip(max(h_src, h_ref) / 10, 256, 2048))
-        STRIP_OVERLAP = max(64, STRIP_H // 8)
-        STRIDE = STRIP_H - STRIP_OVERLAP
-        RIFT2_THRESHOLD = 5  # only invoke RIFT2 if LightGlue finds < N matches
+        strip_height = int(np.clip(max(h_src, h_ref) / 10, 256, 2048))
+        strip_overlap = max(64, strip_height // 8)
+        stride = strip_height - strip_overlap
+        rift2_threshold = 5  # only invoke RIFT2 if LightGlue finds < N matches
 
         # The two images are matched strip-by-strip proportionally.
         # lro_ratio = how many ref rows correspond to 1 src row.
         lro_ratio = h_ref / h_src
 
-        n_strips = max(1, (h_src - STRIP_OVERLAP + STRIDE - 1) // STRIDE)
-        _update(15, f"Running {n_strips}-strip matching (strip_h={STRIP_H}px)…")
+        n_strips = max(1, (h_src - strip_overlap + stride - 1) // stride)
+        _update(15, f"Running {n_strips}-strip matching (strip_h={strip_height}px)…")
 
         all_pts_src, all_pts_ref, all_conf = [], [], []
 
         for i in range(n_strips):
-            y1_s = i * STRIDE
-            y2_s = min(y1_s + STRIP_H, h_src)
+            y1_s = i * stride
+            y2_s = min(y1_s + strip_height, h_src)
             y1_r = int(round(y1_s * lro_ratio))
             y2_r = int(round(y2_s * lro_ratio))
             y1_r, y2_r = max(0, y1_r), min(h_ref, y2_r)
@@ -174,7 +198,7 @@ def run_registration(
             )
 
             # RIFT2 fallback on sparse strips
-            if rift2 is not None and len(pts_s) < RIFT2_THRESHOLD:
+            if rift2 is not None and len(pts_s) < rift2_threshold:
                 try:
                     r_s, r_r, r_c = rift2.match(
                         patch_src, patch_ref, conf_threshold=0.0
@@ -202,6 +226,11 @@ def run_registration(
         mkpts_src = np.vstack(all_pts_src)
         mkpts_ref = np.vstack(all_pts_ref)
         conf_all = np.concatenate(all_conf)
+        holdout = evaluate_homography_holdout(
+            mkpts_ref,
+            mkpts_src,
+            seed=evaluation_manifest.seed,
+        )
 
         # ── 4. MAGSAC++ outlier rejection ────────────────────────────────────
         _update(62, f"MAGSAC++ on {len(mkpts_src)} candidates…")
@@ -265,6 +294,9 @@ def run_registration(
             overlap_pct=reg.overlap_pct,
             execution_time_s=time.time() - t0,
             decision="",
+            heldout_rmse_forward=holdout.rmse_forward,
+            heldout_rmse_backward=holdout.rmse_backward,
+            evaluation_status=holdout.status,
         )
         metrics_obj.decision = quality_gate(metrics_obj)
 
@@ -302,16 +334,22 @@ def run_registration(
                     "inlier",
                 ]
             )
-            for p_s, p_r, c in zip(mkpts_src_r, mkpts_ref_r, conf_k):
+            for p_s, p_r, c in zip(mkpts_src_r, mkpts_ref_r, conf_k, strict=True):
                 w.writerow([p_s[0], p_s[1], p_r[0], p_r[1], float(c), 1])
 
         # Metrics JSON
         metrics_dict = {
+            "evaluation": run_provenance,
             "candidate_matches": metrics_obj.candidate_matches,
             "inlier_matches": metrics_obj.inlier_matches,
             "inlier_ratio": metrics_obj.inlier_ratio,
-            "rmse_forward_px": metrics_obj.rmse_forward,
-            "rmse_backward_px": metrics_obj.rmse_backward,
+            "fit_rmse_forward_px": metrics_obj.rmse_forward,
+            "fit_rmse_backward_px": metrics_obj.rmse_backward,
+            "heldout_rmse_forward_px": metrics_obj.heldout_rmse_forward,
+            "heldout_rmse_backward_px": metrics_obj.heldout_rmse_backward,
+            "evaluation_status": metrics_obj.evaluation_status,
+            "holdout_fit_count": holdout.fit_count,
+            "holdout_count": holdout.heldout_count,
             "spatial_uniformity_cv": metrics_obj.spatial_uniformity,
             "overlap_pct": metrics_obj.overlap_pct,
             "execution_time_s": metrics_obj.execution_time_s,

@@ -1,7 +1,6 @@
 """Universal image loader with auto-detection for lunar .IMG formats."""
 
 from pathlib import Path
-from typing import Tuple
 
 import cv2
 import numpy as np
@@ -10,8 +9,8 @@ from lunarcv.io.raster import (
     extract_patch,
     load_lro_nac_memmap,
     load_ohrc_memmap,
+    load_pds_memmap,
     load_tmc2_memmap,
-    parse_lro_pds_header,
 )
 
 
@@ -27,13 +26,14 @@ def detect_img_format(file_path: Path) -> str:
 
     Returns: 'lro_nac', 'ohrc', 'tmc2', 'generic', or 'unknown'
     """
-    # Try parsing as LRO NAC PDS3 header
+    format_type = "generic"
+    # Try parsing as a PDS3 label, then a PDS4 XML sidecar.
     try:
-        meta = parse_lro_pds_header(file_path)
-        if meta["shape"] is not None:
-            return "lro_nac"
+        arr, _ = load_pds_memmap(file_path)
+        del arr
+        return "pds"
     except Exception:
-        pass
+        format_type = "generic"
 
     # Check file size for known formats
     file_size = file_path.stat().st_size
@@ -47,7 +47,7 @@ def detect_img_format(file_path: Path) -> str:
         return "tmc2"
 
     # Try generic cv2.imread()
-    return "generic"
+    return format_type
 
 
 def load_lunar_img(
@@ -59,7 +59,9 @@ def load_lunar_img(
     Handles: lro_nac, ohrc, tmc2
     Extracts center patch if image exceeds max_dimension.
     """
-    if format_type == "lro_nac":
+    if format_type == "pds":
+        arr, meta = load_pds_memmap(file_path)
+    elif format_type == "lro_nac":
         arr, meta = load_lro_nac_memmap(file_path)
     elif format_type == "ohrc":
         arr = load_ohrc_memmap(file_path)
@@ -73,7 +75,13 @@ def load_lunar_img(
     if h > max_dimension or w > max_dimension:
         patch_h = min(h, max_dimension)
         patch_w = min(w, max_dimension)
-        arr = extract_patch(arr, patch_h, patch_w)
+        row_start = max(0, (h - patch_h) // 2)
+        col_start = max(0, (w - patch_w) // 2)
+        arr = extract_patch(
+            arr,
+            (row_start, row_start + patch_h),
+            (col_start, col_start + patch_w),
+        )
 
     return arr
 
@@ -103,7 +111,7 @@ def normalize_to_uint8(
 
 def load_image_auto(
     file_path: Path, max_dimension: int = 8192
-) -> Tuple[np.ndarray, dict]:
+) -> tuple[np.ndarray, dict]:
     """
     Auto-detect format and load image with fallback chain.
 
@@ -117,10 +125,12 @@ def load_image_auto(
     if suffix in [".img"]:
         format_type = detect_img_format(file_path)
 
-        if format_type in ["lro_nac", "ohrc", "tmc2"]:
+        if format_type in ["pds", "lro_nac", "ohrc", "tmc2"]:
             try:
+                original_shape = load_pds_memmap(file_path)[0].shape if format_type == "pds" else None
                 arr = load_lunar_img(file_path, format_type, max_dimension)
-                original_shape = arr.shape
+                if original_shape is None:
+                    original_shape = arr.shape
                 arr_uint8 = normalize_to_uint8(arr)
 
                 return arr_uint8, {
@@ -133,8 +143,7 @@ def load_image_auto(
                     ),
                 }
             except Exception as e:
-                # Fall through to cv2.imread()
-                pass
+                raise ImageLoadError(f"PDS .IMG parsing failed for {file_path.name}: {e}") from e
 
     # Standard formats or fallback
     try:
@@ -155,4 +164,4 @@ def load_image_auto(
             "patch_extracted": False,
         }
     except Exception as e:
-        raise ImageLoadError(f"Failed to load {file_path.name}: {e}")
+        raise ImageLoadError(f"Failed to load {file_path.name}: {e}") from e
