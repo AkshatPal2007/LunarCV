@@ -1,7 +1,6 @@
 """Validation service for image files and registration pairs."""
 
 from pathlib import Path
-from typing import Optional
 
 import cv2
 
@@ -14,9 +13,7 @@ class ValidationError(Exception):
     pass
 
 
-def validate_uploaded_file(
-    file_path: Path, max_size_mb: int = 1024
-) -> dict[str, any]:
+def validate_uploaded_file(file_path: Path, max_size_mb: int = 1024) -> dict[str, any]:
     """
     Validate file before accepting upload.
 
@@ -90,7 +87,7 @@ def validate_uploaded_file(
 
 def validate_registration_pair(
     source_path: Path, ref_path: Path
-) -> dict[str, Optional[str] | list[str]]:
+) -> dict[str, str | None | list[str]]:
     """
     Validate image pair before job creation.
 

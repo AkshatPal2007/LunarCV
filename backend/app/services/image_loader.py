@@ -127,7 +127,11 @@ def load_image_auto(
 
         if format_type in ["pds", "lro_nac", "ohrc", "tmc2"]:
             try:
-                original_shape = load_pds_memmap(file_path)[0].shape if format_type == "pds" else None
+                original_shape = (
+                    load_pds_memmap(file_path)[0].shape
+                    if format_type == "pds"
+                    else None
+                )
                 arr = load_lunar_img(file_path, format_type, max_dimension)
                 if original_shape is None:
                     original_shape = arr.shape
@@ -143,7 +147,9 @@ def load_image_auto(
                     ),
                 }
             except Exception as e:
-                raise ImageLoadError(f"PDS .IMG parsing failed for {file_path.name}: {e}") from e
+                raise ImageLoadError(
+                    f"PDS .IMG parsing failed for {file_path.name}: {e}"
+                ) from e
 
     # Standard formats or fallback
     try:

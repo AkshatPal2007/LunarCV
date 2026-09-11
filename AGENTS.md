@@ -202,54 +202,306 @@ Do not introduce paid APIs or closed-weight models anywhere in the pipeline.
 
 ```
 LunarCV/
-├── .gitignore
+├── AGENTS.md
+├── CLAUDE.md
+├── Docs
+│   ├── 01_working_architecture.md
+│   ├── 02_key_findings_and_references.md
+│   ├── 03_project_goals_and_submission.md
+│   ├── README.md
+│   ├── RESTRUCTURE_SUMMARY.md
+│   ├── api
+│   │   └── endpoints.md
+│   ├── architecture
+│   │   ├── cv-pipeline.md
+│   │   └── overview.md
+│   ├── deployment
+│   │   └── docker.md
+│   ├── development
+│   │   ├── code-style.md
+│   │   ├── contributing.md
+│   │   ├── setup.md
+│   │   └── testing.md
+│   ├── evaluation_protocol.md
+│   ├── quickstart.md
+│   └── setup
+│       └── configuration.md
+├── Makefile
 ├── README.md
-├── pyproject.toml
-├── .env.example
-│
-├── data/
-│   ├── raw/
-│   └── processed/
-│
-├── outputs/
-│   └── figures/
-│
-├── src/
-│   └── lunarcv/
-│       ├── __init__.py
-│       ├── config.py
-│       ├── io/
-│       │   ├── __init__.py
-│       │   └── raster.py
-│       ├── preprocessing/
-│       │   ├── __init__.py
-│       │   ├── normalize.py
-│       │   └── visualize.py
-│       ├── matching/
-│       │   ├── __init__.py
-│       │   ├── lightglue_matcher.py
-│       │   ├── rift2_matcher.py
-│       │   └── ensemble.py          # cross-validation between matchers
-│       ├── registration/
-│       │   ├── __init__.py
-│       │   ├── outlier_rejection.py  # MAGSAC++
-│       │   ├── spatial_uniformity.py # grid-based top-K
-│       │   ├── subpixel.py
-│       │   └── transform.py
-│       └── evaluation/
-│           ├── __init__.py
-│           └── metrics.py
-│
-├── scripts/
-│   ├── preprocess_patch.py
-│   └── register_pair.py             # end-to-end CLI entrypoint
-│
-├── notebooks/
-├── tests/
-├── docs/
-│   └── AGENTS.md
-└── frontend/
-    └── README.md
+├── backend
+│   ├── Dockerfile
+│   ├── README.md
+│   ├── __init__.py
+│   ├── app
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-311.pyc
+│   │   │   ├── config.cpython-311.pyc
+│   │   │   └── main.cpython-311.pyc
+│   │   ├── api
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   └── __init__.cpython-312.pyc
+│   │   │   └── routes
+│   │   │       ├── __init__.py
+│   │   │       ├── __pycache__
+│   │   │       │   ├── __init__.cpython-312.pyc
+│   │   │       │   ├── health.cpython-312.pyc
+│   │   │       │   ├── images.cpython-312.pyc
+│   │   │       │   ├── registration.cpython-312.pyc
+│   │   │       │   └── upload.cpython-312.pyc
+│   │   │       ├── health.py
+│   │   │       ├── images.py
+│   │   │       ├── registration.py
+│   │   │       └── upload.py
+│   │   ├── config.py
+│   │   ├── exceptions.py
+│   │   ├── main.py
+│   │   ├── schemas
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── common.cpython-312.pyc
+│   │   │   │   ├── images.cpython-312.pyc
+│   │   │   │   └── registration.cpython-312.pyc
+│   │   │   ├── common.py
+│   │   │   ├── images.py
+│   │   │   └── registration.py
+│   │   ├── services
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── image_loader.cpython-312.pyc
+│   │   │   │   ├── registration_service.cpython-312.pyc
+│   │   │   │   └── validation_service.cpython-312.pyc
+│   │   │   ├── image_loader.py
+│   │   │   ├── registration_service.py
+│   │   │   └── validation_service.py
+│   │   └── utils
+│   │       └── __init__.py
+│   ├── coarse_affine.npy
+│   ├── lunarcv
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   └── config.cpython-312.pyc
+│   │   ├── config.py
+│   │   ├── evaluation
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── manifest.cpython-312.pyc
+│   │   │   │   └── metrics.cpython-312.pyc
+│   │   │   ├── manifest.py
+│   │   │   └── metrics.py
+│   │   ├── geo
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── geo_crop.cpython-312.pyc
+│   │   │   │   ├── geo_prior.cpython-312.pyc
+│   │   │   │   └── metadata.cpython-312.pyc
+│   │   │   ├── geo_crop.py
+│   │   │   ├── geo_prior.py
+│   │   │   └── metadata.py
+│   │   ├── io
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   └── raster.cpython-312.pyc
+│   │   │   └── raster.py
+│   │   ├── matching
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── adaptive.cpython-312.pyc
+│   │   │   │   ├── ensemble.cpython-312.pyc
+│   │   │   │   ├── lightglue_matcher.cpython-312.pyc
+│   │   │   │   ├── matcher.cpython-312.pyc
+│   │   │   │   └── rift2_matcher.cpython-312.pyc
+│   │   │   ├── adaptive.py
+│   │   │   ├── ensemble.py
+│   │   │   ├── lightglue_matcher.py
+│   │   │   ├── matcher.py
+│   │   │   └── rift2_matcher.py
+│   │   ├── models
+│   │   │   ├── __init__.py
+│   │   │   ├── objects.py
+│   │   │   └── pipeline.py
+│   │   ├── preprocessing
+│   │   │   ├── __init__.py
+│   │   │   └── normalize.py
+│   │   ├── registration
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-312.pyc
+│   │   │   │   ├── outlier_rejection.cpython-312.pyc
+│   │   │   │   ├── spatial_uniformity.cpython-312.pyc
+│   │   │   │   ├── subpixel.cpython-312.pyc
+│   │   │   │   └── transform.cpython-312.pyc
+│   │   │   ├── outlier_rejection.py
+│   │   │   ├── spatial_uniformity.py
+│   │   │   ├── subpixel.py
+│   │   │   └── transform.py
+│   │   └── third_party
+│   │       └── rift2
+│   │           ├── RIFT2.py
+│   │           ├── __pycache__
+│   │           │   ├── RIFT2.cpython-312.pyc
+│   │           │   └── matcher_functions.cpython-312.pyc
+│   │           ├── matcher_functions.py
+│   │           └── phase_congruency
+│   │               ├── __pycache__
+│   │               │   ├── phasecong.cpython-312.pyc
+│   │               │   └── tools.cpython-312.pyc
+│   │               ├── phasecong.py
+│   │               └── tools.py
+│   ├── lunarcv.egg-info
+│   │   ├── PKG-INFO
+│   │   ├── SOURCES.txt
+│   │   ├── dependency_links.txt
+│   │   ├── requires.txt
+│   │   └── top_level.txt
+│   ├── pyproject.toml
+│   ├── run_server.sh
+│   ├── scripts
+│   │   └── register_pair.py
+│   ├── tests
+│   │   └── test_evaluation_manifest.py
+│   └── uv.lock
+├── data
+│   ├── Comparative_Evaluation_of_Traditional_and_Deep_Lea.pdf
+│   ├── metadata
+│   │   ├── evaluation_manifest.json
+│   │   └── tmc2_patch_bbox.json
+│   ├── processed
+│   │   ├── lro
+│   │   ├── matches
+│   │   └── ohrc
+│   ├── raw
+│   │   ├── lro
+│   │   │   ├── M1350459544RE.IMG
+│   │   │   └── M1350459544RE.IMG:Zone.Identifier
+│   │   └── tmc2
+│   │       └── baseline
+│   │           ├── data
+│   │           │   └── calibrated
+│   │           │       └── 20210401
+│   │           │           └── ch2_ohr_ncp_20210401T2357376656_d_img_d18.img
+│   │           └── geometry
+│   │               └── calibrated
+│   │                   └── 20210401
+│   │                       └── ch2_ohr_ncp_20210401T2357376656_g_grd_d18.csv
+│   ├── results
+│   │   └── showcase_baseline_run
+│   │       ├── checkerboard.png
+│   │       ├── correspondence_points.csv
+│   │       ├── metrics.json
+│   │       ├── overlay.png
+│   │       └── registered.png
+│   ├── sample_pairs
+│   │   ├── reference_lro.png
+│   │   └── source_ohrc_scaled.png
+│   └── uploads
+├── docker-compose.dev.yml
+├── docker-compose.yml
+├── examples
+│   └── pipeline_usage.py
+├── frontend
+│   ├── Dockerfile
+│   ├── Dockerfile.dev
+│   ├── README.md
+│   ├── index.html
+│   ├── nginx.conf
+│   ├── node_modules
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   ├── assets
+│   │   │   ├── apollo_lunar_crater.jpg
+│   │   │   ├── ch2_crater_source.jpg
+│   │   │   ├── ch2_earth_moon.jpg
+│   │   │   ├── ch2_ohrc_super_res.jpg
+│   │   │   ├── ch2_sarabhai_crater.jpg
+│   │   │   ├── ch3_vikram_shivshakti.jpg
+│   │   │   ├── chandrayaan_logo.svg
+│   │   │   ├── copernicus_crater.jpg
+│   │   │   ├── cosmic_bg.png
+│   │   │   ├── dazzling_bg.jpg
+│   │   │   ├── dazzling_nebula.jpg
+│   │   │   ├── isro_logo.svg
+│   │   │   ├── isro_pragyan_crater.jpg
+│   │   │   ├── lro_crater_reference.jpg
+│   │   │   ├── lro_surface_strip.jpg
+│   │   │   ├── lro_tycho_huge.jpg
+│   │   │   ├── lronac.jpg
+│   │   │   ├── lunar_crater_apollo.jpg
+│   │   │   ├── lunar_tycho_summit.jpg
+│   │   │   ├── lunarcv_brand_logo.jpg
+│   │   │   ├── lunarcv_brand_logo.png
+│   │   │   ├── lunarcv_icon.png
+│   │   │   ├── lunarcv_logo.png
+│   │   │   ├── media_1788373670254.jpg
+│   │   │   ├── media_1788373927311.png
+│   │   │   ├── media_1788373958163.jpg
+│   │   │   ├── media_1788373971631.png
+│   │   │   ├── media_1788373985606.png
+│   │   │   ├── media_1788374017817.png
+│   │   │   ├── moe_sih_banner.png
+│   │   │   ├── pole_crater.jpg
+│   │   │   ├── shackleton_south_pole.jpg
+│   │   │   ├── sih_logo.png
+│   │   │   ├── sih_logo_tight.png
+│   │   │   ├── sun_angle_high.jpg
+│   │   │   ├── sun_angle_low.jpg
+│   │   │   └── tmc2.jpg
+│   │   ├── favicon.svg
+│   │   └── icons.svg
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.jsx
+│   │   ├── api
+│   │   │   └── client.js
+│   │   ├── assets
+│   │   │   ├── hero.png
+│   │   │   ├── react.svg
+│   │   │   └── vite.svg
+│   │   ├── components
+│   │   │   ├── CosmicBackground.jsx
+│   │   │   ├── FeatureMatchCanvas.jsx
+│   │   │   ├── GeoFootprintMap.jsx
+│   │   │   ├── MultiModalPipeline.jsx
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── RegistrationVisualizer.jsx
+│   │   │   └── TiledMatching.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   └── vite.config.js
+├── outputs
+│   ├── evaluations
+│   ├── figures
+│   │   ├── matches.png
+│   │   ├── professional_registration_suite.png
+│   │   └── registration_product_diagnostic.png
+│   ├── submission
+│   │   ├── checkerboard.png
+│   │   ├── correspondence_points.csv
+│   │   ├── metrics.json
+│   │   ├── overlay.png
+│   │   ├── professional_suite.png
+│   │   └── registered.png
+│   └── v2_match_cache.pkl
+├── requirements.txt
+├── ruff_errors.json
+├── scripts
+│   └── dev.py
+├── tests
+│   ├── conftest.py
+│   ├── test_geo_prior.py
+│   └── test_metadata.py
+└── uv.lock
+
+76 directories, 223 files
 ```
 
 ## Working Conventions for this Session

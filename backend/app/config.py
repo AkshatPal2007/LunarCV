@@ -3,7 +3,6 @@ FastAPI application configuration.
 """
 
 from pathlib import Path
-from typing import List
 
 from pydantic_settings import BaseSettings
 
@@ -17,7 +16,7 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:5173",  # Vite dev server
         "http://localhost:3000",  # Alternative frontend port
     ]
@@ -31,7 +30,9 @@ class Settings(BaseSettings):
     RAW_DIR: Path = BASE_DIR / "data" / "raw"
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     RESULTS_DIR: Path = BASE_DIR / "data" / "results"
-    EVALUATION_MANIFEST_PATH: Path = BASE_DIR / "data" / "metadata" / "evaluation_manifest.json"
+    EVALUATION_MANIFEST_PATH: Path = (
+        BASE_DIR / "data" / "metadata" / "evaluation_manifest.json"
+    )
 
     # Processing
     CLEANUP_AFTER_HOURS: int = 24  # Auto-delete results after 24 hours

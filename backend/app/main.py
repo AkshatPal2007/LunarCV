@@ -11,8 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.routes import health, images, registration, upload
 from app.config import settings
-from app.api.routes import health, upload, registration, images
 from app.exceptions import LunarCVException
 
 app = FastAPI(
@@ -30,11 +30,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Global exception handler for LunarCV exceptions
 @app.exception_handler(LunarCVException)
 async def lunarcv_exception_handler(request, exc: LunarCVException):
     """Handle LunarCV exceptions with user-friendly messages."""
     return JSONResponse(status_code=400, content={"detail": exc.user_message})
+
 
 # Include routers
 app.include_router(health.router, prefix=settings.API_V1_STR, tags=["health"])

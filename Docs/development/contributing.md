@@ -49,11 +49,14 @@ All new features and bug fixes should include tests.
 ```python
 # backend/tests/test_registration.py
 def test_registration_job_creation():
-    response = client.post("/api/v1/register", json={
-        "source_image_id": "test-source",
-        "reference_image_id": "test-reference",
-        "matcher": "lightglue"
-    })
+    response = client.post(
+        "/api/v1/register",
+        json={
+            "source_image_id": "test-source",
+            "reference_image_id": "test-reference",
+            "matcher": "lightglue",
+        },
+    )
     assert response.status_code == 200
 ```
 
@@ -256,10 +259,13 @@ backend/tests/
 import pytest
 from fastapi.testclient import TestClient
 
+
 @pytest.fixture
 def client():
     from app.main import app
+
     return TestClient(app)
+
 
 def test_health_check(client):
     response = client.get("/api/v1/health")

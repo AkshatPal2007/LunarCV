@@ -10,7 +10,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config import settings
 from app.schemas.registration import UploadResponse
-from app.services.validation_service import ValidationError, validate_uploaded_file
+from app.services.validation_service import validate_uploaded_file
 
 router = APIRouter()
 

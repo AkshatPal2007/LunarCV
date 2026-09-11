@@ -59,6 +59,7 @@ from app.main import app
 
 client = TestClient(app)
 
+
 def test_health_check():
     response = client.get("/api/v1/health")
     assert response.status_code == 200
@@ -73,22 +74,21 @@ def test_upload_valid_image(client, tmp_path):
     # Create test image
     img_path = tmp_path / "test.png"
     img_path.write_bytes(b"fake image data")
-    
+
     with open(img_path, "rb") as f:
         response = client.post(
-            "/api/v1/upload",
-            files={"file": ("test.png", f, "image/png")}
+            "/api/v1/upload", files={"file": ("test.png", f, "image/png")}
         )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "file_id" in data
     assert data["filename"] == "test.png"
 
+
 def test_upload_invalid_extension(client):
     response = client.post(
-        "/api/v1/upload",
-        files={"file": ("test.exe", b"data", "application/exe")}
+        "/api/v1/upload", files={"file": ("test.exe", b"data", "application/exe")}
     )
     assert response.status_code == 400
 ```
@@ -100,16 +100,17 @@ def test_upload_invalid_extension(client):
 import numpy as np
 from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 
+
 def test_lightglue_matcher():
     matcher = LightGlueFeatureMatcher(max_dim=512, max_keypoints=128)
-    
+
     # Create synthetic test images
     img_src = np.random.randint(0, 255, (512, 512), dtype=np.uint8)
     img_ref = np.random.randint(0, 255, (512, 512), dtype=np.uint8)
-    
+
     # Run matching
     pts_src, pts_ref, conf = matcher.match(img_src, img_ref)
-    
+
     # Verify output format
     assert pts_src.shape[1] == 2  # (N, 2) coordinates
     assert pts_ref.shape[1] == 2
@@ -126,21 +127,24 @@ Share test setup via `conftest.py`:
 import pytest
 from fastapi.testclient import TestClient
 
+
 @pytest.fixture
 def client():
     from app.main import app
+
     return TestClient(app)
+
 
 @pytest.fixture
 def test_images(tmp_path):
     """Create temporary test images."""
     source = tmp_path / "source.png"
     reference = tmp_path / "reference.png"
-    
+
     # Create fake images
     source.write_bytes(b"fake source")
     reference.write_bytes(b"fake reference")
-    
+
     return {"source": source, "reference": reference}
 ```
 
@@ -151,17 +155,18 @@ Mock external dependencies:
 ```python
 from unittest.mock import patch, MagicMock
 
-@patch('lunarcv.matching.lightglue_matcher.LightGlueFeatureMatcher')
+
+@patch("lunarcv.matching.lightglue_matcher.LightGlueFeatureMatcher")
 def test_registration_with_mock(mock_matcher, client):
     # Mock matcher behavior
     mock_instance = MagicMock()
     mock_instance.match.return_value = (
         np.array([[0, 0], [10, 10]]),  # pts_src
         np.array([[0, 0], [10, 10]]),  # pts_ref
-        np.array([0.9, 0.8])            # confidence
+        np.array([0.9, 0.8]),  # confidence
     )
     mock_matcher.return_value = mock_instance
-    
+
     # Test with mock
     response = client.post("/api/v1/register", json={...})
     assert response.status_code == 200
@@ -172,17 +177,23 @@ def test_registration_with_mock(mock_matcher, client):
 Test multiple scenarios:
 
 ```python
-@pytest.mark.parametrize("matcher,expected", [
-    ("lightglue", 200),
-    ("loftr", 200),
-    ("invalid", 400),
-])
+@pytest.mark.parametrize(
+    "matcher,expected",
+    [
+        ("lightglue", 200),
+        ("loftr", 200),
+        ("invalid", 400),
+    ],
+)
 def test_register_with_matchers(client, matcher, expected):
-    response = client.post("/api/v1/register", json={
-        "source_image_id": "test-src",
-        "reference_image_id": "test-ref",
-        "matcher": matcher
-    })
+    response = client.post(
+        "/api/v1/register",
+        json={
+            "source_image_id": "test-src",
+            "reference_image_id": "test-ref",
+            "matcher": matcher,
+        },
+    )
     assert response.status_code == expected
 ```
 
@@ -192,6 +203,7 @@ For async code:
 
 ```python
 import pytest
+
 
 @pytest.mark.asyncio
 async def test_async_function():
@@ -267,35 +279,39 @@ def test_full_registration_workflow(client, test_images):
     with open(test_images["source"], "rb") as f:
         upload_src = client.post("/api/v1/upload", files={"file": f})
     source_id = upload_src.json()["file_id"]
-    
+
     # 2. Upload reference image
     with open(test_images["reference"], "rb") as f:
         upload_ref = client.post("/api/v1/upload", files={"file": f})
     reference_id = upload_ref.json()["file_id"]
-    
+
     # 3. Create registration job
-    job_resp = client.post("/api/v1/register", json={
-        "source_image_id": source_id,
-        "reference_image_id": reference_id,
-        "matcher": "lightglue"
-    })
+    job_resp = client.post(
+        "/api/v1/register",
+        json={
+            "source_image_id": source_id,
+            "reference_image_id": reference_id,
+            "matcher": "lightglue",
+        },
+    )
     assert job_resp.status_code == 200
     job_id = job_resp.json()["job_id"]
-    
+
     # 4. Poll until complete (with timeout)
     import time
+
     for _ in range(30):
         status_resp = client.get(f"/api/v1/jobs/{job_id}")
         status = status_resp.json()["status"]
         if status in ["completed", "failed"]:
             break
         time.sleep(1)
-    
+
     # 5. Get results
     results_resp = client.get(f"/api/v1/jobs/{job_id}/results")
     assert results_resp.status_code == 200
     results = results_resp.json()
-    
+
     if results["status"] == "completed":
         assert "metrics" in results
         assert results["registered_image_url"] is not None
@@ -348,24 +364,25 @@ Test registration speed:
 import pytest
 import time
 
+
 def test_registration_performance(client, test_images):
     # Upload images
     # ... (upload code)
-    
+
     # Start job
     start = time.time()
     job_resp = client.post("/api/v1/register", json={...})
     job_id = job_resp.json()["job_id"]
-    
+
     # Wait for completion
     while True:
         status = client.get(f"/api/v1/jobs/{job_id}").json()
         if status["status"] != "processing":
             break
         time.sleep(0.5)
-    
+
     elapsed = time.time() - start
-    
+
     # Assert reasonable time (e.g., <60s for small test images)
     assert elapsed < 60, f"Registration took {elapsed}s, expected <60s"
 ```
@@ -461,8 +478,7 @@ pip install -e .
 Mark slow tests:
 ```python
 @pytest.mark.slow
-def test_full_registration_on_large_images():
-    ...
+def test_full_registration_on_large_images(): ...
 ```
 
 ## Next Steps

@@ -3,10 +3,10 @@ geo_prior.py — Geographic prior estimation and tiling.
 Handles overlapping region calculation, scale ratio estimation,
 and automatic tiling for large bounding boxes.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from lunarcv.geo.metadata import BoundingBox, ImageMetadata
 
@@ -14,16 +14,17 @@ from lunarcv.geo.metadata import BoundingBox, ImageMetadata
 @dataclass
 class Tile:
     """Represents a localised crop inside an image."""
+
     x: int
     y: int
     width: int
     height: int
-    bbox: Optional[BoundingBox] = None
+    bbox: BoundingBox | None = None
 
 
 def compute_overlap(
     src_meta: ImageMetadata, ref_meta: ImageMetadata
-) -> Optional[BoundingBox]:
+) -> BoundingBox | None:
     """
     Compute the geographic intersection of source and reference images.
     Returns None if they do not overlap or if either has no bbox.
@@ -51,12 +52,12 @@ def generate_tiles(
     image_height: int,
     tile_size: int,
     overlap: int = 0,
-) -> List[Tile]:
+) -> list[Tile]:
     """
     Divide an image into a grid of (possibly overlapping) tiles.
     Tiny sliver tiles at the trailing edges are discarded.
     """
-    tiles: List[Tile] = []
+    tiles: list[Tile] = []
     stride = tile_size - overlap
     if stride <= 0:
         raise ValueError("overlap must be strictly less than tile_size.")
@@ -77,7 +78,7 @@ def generate_tiles(
 
 def geo_bbox_to_pixel_coords(
     bbox: BoundingBox, img_meta: ImageMetadata
-) -> Tuple[int, int, int, int]:
+) -> tuple[int, int, int, int]:
     """
     Convert a geographic bounding box to pixel coordinates (x, y, w, h)
     within an image. Assumes a simple linear (equirectangular) projection —

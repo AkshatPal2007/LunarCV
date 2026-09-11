@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import numpy as np
+
 from lunarcv.evaluation.manifest import (
     EvaluationManifest,
     build_run_provenance,
@@ -10,8 +12,6 @@ from lunarcv.evaluation.metrics import (
     deterministic_holdout_split,
     evaluate_homography_holdout,
 )
-import numpy as np
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST_PATH = REPO_ROOT / "data" / "metadata" / "evaluation_manifest.json"
@@ -70,7 +70,18 @@ def test_holdout_split_is_deterministic_and_disjoint():
 
 def test_holdout_evaluation_is_not_fit_residual():
     pts_ref = np.array(
-        [[0, 0], [10, 0], [20, 0], [0, 10], [10, 10], [20, 10], [0, 20], [10, 20], [20, 20], [30, 20]],
+        [
+            [0, 0],
+            [10, 0],
+            [20, 0],
+            [0, 10],
+            [10, 10],
+            [20, 10],
+            [0, 20],
+            [10, 20],
+            [20, 20],
+            [30, 20],
+        ],
         dtype=np.float32,
     )
     pts_src = pts_ref + np.array([5.0, -3.0], dtype=np.float32)

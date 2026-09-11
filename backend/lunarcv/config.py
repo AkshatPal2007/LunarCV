@@ -21,6 +21,7 @@ OUTPUT_DIR = PROJECT_ROOT / "outputs"
 FIGURES_DIR = OUTPUT_DIR / "figures"
 EVAL_DIR = OUTPUT_DIR / "evaluations"
 SUBMISSION_DIR = OUTPUT_DIR / "submission"
+PIPELINE_OUTPUT_DIR = OUTPUT_DIR / "pipeline"  # For Pipeline object tracking
 
 # ---------------------------------------------------------------------------
 # Chandrayaan-2 OHRC Baseline Product

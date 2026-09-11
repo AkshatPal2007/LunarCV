@@ -2,7 +2,8 @@
 Registration-related Pydantic schemas.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from .common import JobStatus
@@ -31,10 +32,10 @@ class RegistrationJobStatus(BaseModel):
 
     job_id: str
     status: JobStatus
-    progress: Optional[int] = Field(None, description="Progress percentage (0-100)")
-    message: Optional[str] = None
+    progress: int | None = Field(None, description="Progress percentage (0-100)")
+    message: str | None = None
     created_at: str
-    completed_at: Optional[str] = None
+    completed_at: str | None = None
 
 
 class RegistrationResults(BaseModel):
@@ -42,12 +43,12 @@ class RegistrationResults(BaseModel):
 
     job_id: str
     status: JobStatus
-    metrics: Optional[Dict[str, Any]] = None
-    registered_image_url: Optional[str] = None
-    overlay_image_url: Optional[str] = None
-    checkerboard_image_url: Optional[str] = None
-    correspondence_csv_url: Optional[str] = None
-    error: Optional[str] = None
+    metrics: dict[str, Any] | None = None
+    registered_image_url: str | None = None
+    overlay_image_url: str | None = None
+    checkerboard_image_url: str | None = None
+    correspondence_csv_url: str | None = None
+    error: str | None = None
 
 
 class UploadResponse(BaseModel):

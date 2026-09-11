@@ -4,20 +4,19 @@ Registration endpoints.
 
 import uuid
 from datetime import datetime
-from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from app.config import settings
+from app.schemas.common import JobStatus
 from app.schemas.registration import (
     RegistrationJobCreate,
     RegistrationJobResponse,
     RegistrationJobStatus,
     RegistrationResults,
 )
-from app.schemas.common import JobStatus
 from app.services.registration_service import run_registration
-from app.services.validation_service import ValidationError, validate_registration_pair
+from app.services.validation_service import validate_registration_pair
 
 router = APIRouter()
 

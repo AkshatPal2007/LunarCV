@@ -1,4 +1,11 @@
 """lunarcv.evaluation — Registration metrics and quality gate."""
+
+from lunarcv.evaluation.manifest import (
+    EvaluationManifest,
+    EvaluationPair,
+    build_run_provenance,
+    sha256_file,
+)
 from lunarcv.evaluation.metrics import (
     HoldoutEvaluation,
     RegistrationMetrics,
@@ -7,12 +14,6 @@ from lunarcv.evaluation.metrics import (
     evaluate_homography_holdout,
     evaluate_spatial_uniformity,
     quality_gate,
-)
-from lunarcv.evaluation.manifest import (
-    EvaluationManifest,
-    EvaluationPair,
-    build_run_provenance,
-    sha256_file,
 )
 
 __all__ = [

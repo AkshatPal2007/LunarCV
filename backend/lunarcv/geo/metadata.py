@@ -3,11 +3,12 @@ metadata.py — Generic metadata representation for lunar imagery.
 Handles extraction of bounding boxes, GSD, and sensor information
 from OHRC, TMC-2, LRO NAC, and SELENE products.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +16,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BoundingBox:
     """Geographic bounding box in degrees."""
+
     min_lon: float
     min_lat: float
     max_lon: float
     max_lat: float
 
-    def intersection(self, other: BoundingBox) -> Optional[BoundingBox]:
+    def intersection(self, other: BoundingBox) -> BoundingBox | None:
         """Compute intersection with another bounding box."""
         min_lon = max(self.min_lon, other.min_lon)
         min_lat = max(self.min_lat, other.min_lat)
@@ -32,23 +34,26 @@ class BoundingBox:
         return None
 
     def contains(self, lon: float, lat: float) -> bool:
-        return self.min_lon <= lon <= self.max_lon and self.min_lat <= lat <= self.max_lat
+        return (
+            self.min_lon <= lon <= self.max_lon and self.min_lat <= lat <= self.max_lat
+        )
 
 
 @dataclass
 class ImageMetadata:
     """Unified metadata representation for any supported lunar image."""
-    sensor: str                       # 'OHRC', 'TMC-2', 'LRO_NAC', etc.
+
+    sensor: str  # 'OHRC', 'TMC-2', 'LRO_NAC', etc.
     width: int
     height: int
-    gsd_meters: float                 # Ground Sampling Distance (metres/pixel)
-    bbox: Optional[BoundingBox]       # Geographic footprint (may be None)
-    sun_elevation: Optional[float] = None
-    sun_azimuth: Optional[float] = None
-    raw_metadata: Optional[Dict[str, Any]] = None
+    gsd_meters: float  # Ground Sampling Distance (metres/pixel)
+    bbox: BoundingBox | None  # Geographic footprint (may be None)
+    sun_elevation: float | None = None
+    sun_azimuth: float | None = None
+    raw_metadata: dict[str, Any] | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], sensor: str = "UNKNOWN") -> ImageMetadata:
+    def from_dict(cls, data: dict[str, Any], sensor: str = "UNKNOWN") -> ImageMetadata:
         """
         Create ImageMetadata from a standardised dictionary.
         Serves as a generic parser for mock data or normalised JSON.
@@ -68,6 +73,7 @@ class ImageMetadata:
             sun_azimuth=data.get("sun_azimuth"),
             raw_metadata=data,
         )
+
 
 # Future: Add specific parsers for PDS3 labels, XML, GeoTIFF, etc.
 # def parse_lro_nac_lbl(filepath: str) -> ImageMetadata: ...

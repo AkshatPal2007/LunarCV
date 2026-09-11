@@ -41,13 +41,16 @@ ruff check app/api/routes/upload.py
 class LightGlueFeatureMatcher:
     pass
 
+
 # Functions/variables: snake_case
 def compute_registration(pts_src, pts_ref):
     inlier_count = len(pts_src)
 
+
 # Constants: UPPER_SNAKE_CASE
 MAX_UPLOAD_SIZE = 1073741824
 API_V1_STR = "/api/v1"
+
 
 # Private: leading underscore
 def _internal_helper():
@@ -102,16 +105,16 @@ def magsac_filter(
     mkpts_src: np.ndarray,
     mkpts_ref: np.ndarray,
     conf: np.ndarray,
-    model: str = "homography"
+    model: str = "homography",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Apply MAGSAC++ geometric outlier rejection.
-    
+
     Args:
         mkpts_src: Source keypoints (N, 2)
         mkpts_ref: Reference keypoints (N, 2)
         conf: Match confidence scores (N,)
         model: Geometric model ("homography" or "affine")
-        
+
     Returns:
         Tuple of (clean_src, clean_ref, clean_conf, H_matrix, inlier_mask)
     """
@@ -135,6 +138,7 @@ Default to **zero comments**. Only comment when:
 def add(a, b):
     # Add two numbers
     return a + b
+
 
 # ✅ Comment the non-obvious
 def compute_homography(pts_ref, pts_src):
@@ -167,6 +171,7 @@ Always use `pathlib.Path`:
 ```python
 # ❌ String paths
 import os
+
 path = os.path.join("data", "uploads", "file.png")
 if os.path.exists(path):
     with open(path, "rb") as f:
@@ -174,6 +179,7 @@ if os.path.exists(path):
 
 # ✅ pathlib.Path
 from pathlib import Path
+
 path = Path("data") / "uploads" / "file.png"
 if path.exists():
     data = path.read_bytes()
@@ -506,12 +512,14 @@ def add_item(item, items=[]):
     items.append(item)
     return items
 
+
 # ✅ Use None
 def add_item(item, items=None):
     if items is None:
         items = []
     items.append(item)
     return items
+
 
 # ❌ Catching Exception
 try:

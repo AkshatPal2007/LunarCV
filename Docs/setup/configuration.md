@@ -86,32 +86,34 @@ For advanced configuration beyond environment variables:
 ```python
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     # API Configuration
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "LunarCV API"
-    
+
     # CORS - parsed from comma-separated string
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
     ]
-    
+
     # File Upload
     MAX_UPLOAD_SIZE: int = 1024 * 1024 * 1024  # 1GB
     ALLOWED_EXTENSIONS: set = {".img", ".tif", ".tiff", ".png", ".jpg", ".jpeg"}
-    
+
     # Paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
     RESULTS_DIR: Path = BASE_DIR / "data" / "results"
-    
+
     # Processing
     CLEANUP_AFTER_HOURS: int = 24
-    
+
     class Config:
         case_sensitive = True
         env_file = ".env"
+
 
 settings = Settings()
 ```
@@ -147,7 +149,7 @@ LRO_GSD = 1.60  # meters/pixel
 
 # Scale ratios
 SCALE_Y_LRO_TO_OHRC = 15000 / 3294  # ~4.55x
-SCALE_X_LRO_TO_OHRC = 6000 / 571    # ~10.5x
+SCALE_X_LRO_TO_OHRC = 6000 / 571  # ~10.5x
 ```
 
 **To customize:**
@@ -389,6 +391,7 @@ services:
 **Debug:**
 ```python
 from app.config import settings
+
 print(settings.dict())
 ```
 
@@ -409,6 +412,7 @@ BACKEND_CORS_ORIGINS=http://localhost:5173,https://yourdomain.com
 **Debug:**
 ```python
 from app.config import settings
+
 print(f"Upload dir: {settings.UPLOAD_DIR}")
 print(f"Exists: {settings.UPLOAD_DIR.exists()}")
 ```

@@ -2,14 +2,13 @@
 rift2_matcher.py — RIFT2 phase-congruency feature matcher.
 Wraps the third_party RIFT2 implementation into the Matcher interface.
 """
+
 from __future__ import annotations
 
 import logging
 import sys
 from pathlib import Path
-from typing import Tuple
 
-import cv2
 import numpy as np
 
 from lunarcv.matching.matcher import Matcher
@@ -26,8 +25,9 @@ if str(_RIFT2_DIR) not in sys.path:
     sys.path.insert(0, str(_RIFT2_DIR))
 
 try:
-    from RIFT2 import RIFT2  # type: ignore
     from matcher_functions import match_keypoints_nn  # type: ignore
+    from RIFT2 import RIFT2  # type: ignore
+
     _RIFT2_AVAILABLE = True
 except ImportError as _e:
     _RIFT2_AVAILABLE = False
@@ -53,7 +53,7 @@ class RIFT2Matcher(Matcher):
         src_img: np.ndarray,
         ref_img: np.ndarray,
         conf_threshold: float = 0.0,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Run RIFT2 detection, description, and mutual nearest-neighbour matching."""
         _empty = (
             np.empty((0, 2), dtype=np.float32),

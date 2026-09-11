@@ -1,10 +1,10 @@
 """
 matcher.py — Abstract base class for all LunarCV feature matchers.
 """
+
 from __future__ import annotations
 
 import abc
-from typing import Tuple
 
 import numpy as np
 
@@ -21,7 +21,7 @@ class Matcher(abc.ABC):
         src_img: np.ndarray,
         ref_img: np.ndarray,
         conf_threshold: float = 0.0,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Extract and match features between source and reference images.
 

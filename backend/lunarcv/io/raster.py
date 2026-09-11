@@ -62,7 +62,9 @@ def parse_lro_pds_header(img_path: Path) -> dict:
     offset = ((image_pointer - 1) * rec_bytes) if image_pointer and rec_bytes else 0
     sample_type = get_val("SAMPLE_TYPE", default="MSB_INTEGER").upper()
     byte_order = "little" if "LSB" in sample_type else "big"
-    dtype = np.dtype(("<" if byte_order == "little" else ">") + ("u1" if bits == 8 else "u2"))
+    dtype = np.dtype(
+        ("<" if byte_order == "little" else ">") + ("u1" if bits == 8 else "u2")
+    )
 
     return {
         "record_bytes": rec_bytes,
@@ -104,7 +106,9 @@ def parse_pds4_xml(img_path: Path) -> dict:
     """Parse the image fields needed for a PDS4 detached-label product."""
     label_path = img_path.with_suffix(".xml")
     if not label_path.exists():
-        raise ValueError(f"PDS4 label not found next to {img_path.name}: {label_path.name}")
+        raise ValueError(
+            f"PDS4 label not found next to {img_path.name}: {label_path.name}"
+        )
 
     root = ElementTree.parse(label_path).getroot()
 
@@ -123,13 +127,17 @@ def parse_pds4_xml(img_path: Path) -> dict:
         if axis_name and elements:
             axis_sizes[axis_name.lower()] = int(elements)
     if "line" not in axis_sizes or "sample" not in axis_sizes:
-        raise ValueError(f"PDS4 label {label_path.name} must define Line and Sample axes")
+        raise ValueError(
+            f"PDS4 label {label_path.name} must define Line and Sample axes"
+        )
     lines = axis_sizes["line"]
     samples = axis_sizes["sample"]
     offset = int(_xml_value(root, "offset") or "0")
     data_type = (_xml_value(root, "data_type") or "UnsignedByte").upper()
     bits_selection = (_xml_value(root, "bits_selection") or "MSB").upper()
-    byte_order = "little" if "LSB" in bits_selection or "LITTLE" in bits_selection else "big"
+    byte_order = (
+        "little" if "LSB" in bits_selection or "LITTLE" in bits_selection else "big"
+    )
     if data_type in {"UNSIGNEDBYTE", "SIGNEDBYTE"}:
         dtype_code = "u1"
     elif data_type in {"UNSIGNEDMSB2", "UNSIGNEDLSB2", "SIGNEDMSB2", "SIGNEDLSB2"}:

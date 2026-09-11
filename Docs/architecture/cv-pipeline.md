@@ -40,13 +40,7 @@ Registered Output + Metrics
 **Implementation:**
 ```python
 # Zero-copy memory mapping
-ohrc_mm = np.memmap(
-    img_path, 
-    dtype='uint8', 
-    mode='r', 
-    offset=0, 
-    shape=(90148, 12000)
-)
+ohrc_mm = np.memmap(img_path, dtype="uint8", mode="r", offset=0, shape=(90148, 12000))
 
 # Extract patch without loading full image
 patch = ohrc_mm[30000:45000, 2000:8000]
@@ -96,11 +90,7 @@ For cross-sensor pairs (e.g., OHRC 0.26 m/px vs LRO NAC 1.60 m/px), scale the hi
 
 ```python
 scale_factor = LRO_GSD / OHRC_GSD  # 1.60 / 0.26 ≈ 6.15x
-ohrc_scaled = cv2.resize(
-    ohrc_norm, 
-    (target_w, target_h), 
-    interpolation=cv2.INTER_AREA
-)
+ohrc_scaled = cv2.resize(ohrc_norm, (target_w, target_h), interpolation=cv2.INTER_AREA)
 ```
 
 ---
@@ -133,18 +123,18 @@ Keypoints + Descriptors    Keypoints + Descriptors
 class LightGlueFeatureMatcher:
     def __init__(self, max_dim=1024, max_keypoints=2048):
         self.extractor = SuperPoint(max_num_keypoints=max_keypoints)
-        self.matcher = LightGlue(features='superpoint')
-    
+        self.matcher = LightGlue(features="superpoint")
+
     def match(self, img_src, img_ref, conf_threshold=0.2):
         # Detect keypoints
         feats_src = self.extractor.extract(img_src)
         feats_ref = self.extractor.extract(img_ref)
-        
+
         # Match with transformer
-        matches = self.matcher({'image0': feats_src, 'image1': feats_ref})
-        
+        matches = self.matcher({"image0": feats_src, "image1": feats_ref})
+
         # Filter by confidence
-        mask = matches['scores'] > conf_threshold
+        mask = matches["scores"] > conf_threshold
         return mkpts_src[mask], mkpts_ref[mask], scores[mask]
 ```
 
@@ -184,16 +174,16 @@ for i in range(n_chunks):
 **Algorithm:** MAGSAC++ (MAximum Marginal likelihood SAmple Consensus)
 
 ```python
-def magsac_filter(mkpts_src, mkpts_ref, conf, model='homography'):
+def magsac_filter(mkpts_src, mkpts_ref, conf, model="homography"):
     H, mask = cv2.findHomography(
         mkpts_ref,  # reference points
         mkpts_src,  # source points
         method=cv2.USAC_MAGSAC,
         ransacReprojThreshold=4.0,
         confidence=0.999,
-        maxIters=10000
+        maxIters=10000,
     )
-    
+
     # Keep only inliers
     inliers = mask.ravel() == 1
     return mkpts_src[inliers], mkpts_ref[inliers], conf[inliers], H, mask
@@ -231,20 +221,24 @@ def magsac_filter(mkpts_src, mkpts_ref, conf, model='homography'):
 def spatial_topk_filter(pts, conf, image_h, image_w, n_rows=4, n_cols=4):
     grid_h = image_h // n_rows
     grid_w = image_w // n_cols
-    
+
     selected = []
     for row in range(n_rows):
         for col in range(n_cols):
             # Find points in this grid cell
-            mask = (pts[:, 1] >= row * grid_h) & (pts[:, 1] < (row+1) * grid_h) & \
-                   (pts[:, 0] >= col * grid_w) & (pts[:, 0] < (col+1) * grid_w)
-            
+            mask = (
+                (pts[:, 1] >= row * grid_h)
+                & (pts[:, 1] < (row + 1) * grid_h)
+                & (pts[:, 0] >= col * grid_w)
+                & (pts[:, 0] < (col + 1) * grid_w)
+            )
+
             if mask.sum() > 0:
                 # Keep top-K highest-confidence matches in this cell
                 cell_idx = np.where(mask)[0]
                 sorted_idx = cell_idx[np.argsort(conf[cell_idx])[::-1]]
                 selected.extend(sorted_idx[:K])
-    
+
     return selected
 ```
 
@@ -271,25 +265,25 @@ def spatial_topk_filter(pts, conf, image_h, image_w, n_rows=4, n_cols=4):
 **Method:** `cv2.cornerSubPix` (iterative gradient-based refinement)
 
 ```python
-def refine_matches(src_img, ref_img, pts_src, pts_ref, win_size=(5,5)):
+def refine_matches(src_img, ref_img, pts_src, pts_ref, win_size=(5, 5)):
     # Refine source points
     pts_src_refined = cv2.cornerSubPix(
         src_img,
         pts_src.copy(),
         winSize=win_size,
         zeroZone=(-1, -1),
-        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001)
+        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001),
     )
-    
+
     # Refine reference points
     pts_ref_refined = cv2.cornerSubPix(
         ref_img,
         pts_ref.copy(),
         winSize=win_size,
         zeroZone=(-1, -1),
-        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001)
+        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 40, 0.001),
     )
-    
+
     return pts_src_refined, pts_ref_refined
 ```
 
@@ -321,15 +315,11 @@ H_final, mask = cv2.findHomography(
     pts_ref_refined,  # Reference → Source mapping
     pts_src_refined,
     method=cv2.RANSAC,
-    ransacReprojThreshold=3.0
+    ransacReprojThreshold=3.0,
 )
 
 # Warp reference image to source coordinate system
-warped_ref = cv2.warpPerspective(
-    ref_img, 
-    H_final, 
-    (output_w, output_h)
-)
+warped_ref = cv2.warpPerspective(ref_img, H_final, (output_w, output_h))
 ```
 
 **Transform Options:**

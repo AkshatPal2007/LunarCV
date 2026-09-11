@@ -13,17 +13,6 @@ Core packages:
 __version__ = "0.2.0"
 
 # Core I/O
-from lunarcv.io.raster import load_ohrc_memmap, load_lro_nac_memmap, extract_patch
-
-# Matching
-from lunarcv.matching.matcher import Matcher
-from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
-from lunarcv.matching.ensemble import EnsembleMatcher
-
-# Registration
-from lunarcv.registration.outlier_rejection import magsac_filter
-from lunarcv.registration.transform import compute_registration
-
 # Evaluation
 from lunarcv.evaluation.metrics import (
     RegistrationMetrics,
@@ -31,20 +20,42 @@ from lunarcv.evaluation.metrics import (
     evaluate_spatial_uniformity,
     quality_gate,
 )
+from lunarcv.geo.geo_prior import compute_overlap, estimate_scale_ratio, generate_tiles
 
 # Geo
 from lunarcv.geo.metadata import BoundingBox, ImageMetadata
-from lunarcv.geo.geo_prior import compute_overlap, estimate_scale_ratio, generate_tiles
+from lunarcv.io.raster import extract_patch, load_lro_nac_memmap, load_ohrc_memmap
+from lunarcv.matching.ensemble import EnsembleMatcher
+from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
+
+# Matching
+from lunarcv.matching.matcher import Matcher
+
+# Registration
+from lunarcv.registration.outlier_rejection import magsac_filter
+from lunarcv.registration.transform import compute_registration
 
 __all__ = [
     # I/O
-    "load_ohrc_memmap", "load_lro_nac_memmap", "extract_patch",
+    "load_ohrc_memmap",
+    "load_lro_nac_memmap",
+    "extract_patch",
     # Matching
-    "Matcher", "LightGlueFeatureMatcher", "EnsembleMatcher",
+    "Matcher",
+    "LightGlueFeatureMatcher",
+    "EnsembleMatcher",
     # Registration
-    "magsac_filter", "compute_registration",
+    "magsac_filter",
+    "compute_registration",
     # Evaluation
-    "RegistrationMetrics", "calculate_rmse", "evaluate_spatial_uniformity", "quality_gate",
+    "RegistrationMetrics",
+    "calculate_rmse",
+    "evaluate_spatial_uniformity",
+    "quality_gate",
     # Geo
-    "BoundingBox", "ImageMetadata", "compute_overlap", "estimate_scale_ratio", "generate_tiles",
+    "BoundingBox",
+    "ImageMetadata",
+    "compute_overlap",
+    "estimate_scale_ratio",
+    "generate_tiles",
 ]

@@ -2,10 +2,10 @@
 ensemble.py — Multi-matcher aggregation strategy for LunarCV.
 Runs multiple Matcher backends and combines their candidate correspondences.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
 
 import numpy as np
 
@@ -23,7 +23,7 @@ class EnsembleMatcher(Matcher):
     are caught and logged so the ensemble degrades gracefully.
     """
 
-    def __init__(self, matchers: List[Matcher]):
+    def __init__(self, matchers: list[Matcher]):
         if not matchers:
             raise ValueError("EnsembleMatcher requires at least one matcher.")
         self.matchers = matchers
@@ -33,7 +33,7 @@ class EnsembleMatcher(Matcher):
         src_img: np.ndarray,
         ref_img: np.ndarray,
         conf_threshold: float = 0.0,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Run all matchers and return combined candidates."""
         all_src, all_ref, all_conf = [], [], []
 

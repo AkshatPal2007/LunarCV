@@ -65,6 +65,7 @@ from lunarcv.config import (
     OHRC_OVERLAP_PATCH_ROWS,
     OHRC_SHAPE,
     OUTPUT_DIR,
+    PIPELINE_OUTPUT_DIR,
     SUBMISSION_DIR,
 )
 from lunarcv.geo.geo_crop import (
@@ -82,7 +83,7 @@ from lunarcv.registration.transform import (
     make_overlay,
     make_professional_suite,
 )
-
+from lunarcv.models import Pipeline, MatchSet, TransformModel, EvaluationMetrics
 
 # =============================================================================
 # Helper Functions
@@ -349,9 +350,14 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)
 
+    # Initialize pipeline tracking with configured output directory
+    pipeline = Pipeline("ohrc_to_lro_registration", output_dir=PIPELINE_OUTPUT_DIR)
+
     print("=" * 75)
     print("LunarCV — Unified Breakthrough Registration Pipeline")
-    print(f"Transform Model: {args.model.upper()} (Single Continuous Surface, Zero Tile Cuts)")
+    print(
+        f"Transform Model: {args.model.upper()} (Single Continuous Surface, Zero Tile Cuts)"
+    )
     print("=" * 75)
 
     # ------------------------------------------------------------------
@@ -460,17 +466,9 @@ def main():
         results = []
         for i in range(args.n_chunks):
             y1_src = i * step_src
-            y2_src = (
-                y1_src + step_src + overlap_src
-                if i < args.n_chunks - 1
-                else h_src
-            )
+            y2_src = y1_src + step_src + overlap_src if i < args.n_chunks - 1 else h_src
             y1_ref = i * step_ref
-            y2_ref = (
-                y1_ref + step_ref + overlap_ref
-                if i < args.n_chunks - 1
-                else h_ref
-            )
+            y2_ref = y1_ref + step_ref + overlap_ref if i < args.n_chunks - 1 else h_ref
 
             res = match_chunk(
                 matcher,
@@ -486,7 +484,7 @@ def main():
             results.append(res)
             flag = "✓" if res["status"] == "ACCEPTED" else "✗"
             print(
-                f"  Chunk {i+1:02d} [{flag}]  raw={res['raw_matches']:3d}  "
+                f"  Chunk {i + 1:02d} [{flag}]  raw={res['raw_matches']:3d}  "
                 f"inliers={res['inliers']:2d}  RMSE={res['rmse']:.2f}px  "
                 f"{'  ' + res['reason'] if res['status'] == 'REJECTED' else ''}"
             )
@@ -511,6 +509,18 @@ def main():
 
     src_scaled_all = (src_orig_all / scale).astype(np.float32)
     ref_all = ref_all.astype(np.float32)
+
+    # Save initial matches
+    matches = MatchSet(
+        source_name="ohrc",
+        reference_name="lro_nac",
+        source_kpts=src_orig_all,
+        reference_kpts=ref_all,
+        matcher_type="lightglue_rift2_ensemble",
+    )
+    stage_dir = pipeline.get_stage_dir("matching")
+    matches.save(stage_dir)
+    pipeline.record_stage("matching", stage_dir, metadata={"n_matches": len(src_orig_all)})
 
     # Outlier rejection via Global MAGSAC++:
     if args.model == "similarity":
@@ -552,6 +562,13 @@ def main():
     pts_src_clean = src_scaled_all[inliers]
     pts_ref_clean = ref_all[inliers]
     pts_src_orig_clean = src_orig_all[inliers]
+
+    # Update matches with outlier rejection results
+    matches.inlier_mask = inliers
+    matches.transform_type = args.model
+    stage_dir = pipeline.get_stage_dir("outlier_rejection")
+    matches.save(stage_dir)
+    pipeline.record_stage("outlier_rejection", stage_dir, metadata={"n_inliers": int(inliers.sum())})
 
     # Sub-pixel refinement
     pts_src_subpix, pts_ref_subpix, subpix_stats = refine_matches(
@@ -603,14 +620,12 @@ def main():
         mask_warped = warped_ohrc > 0
 
     elif args.model == "homography":
-        H, _ = cv2.findHomography(
-            pts_src_subpix, pts_ref_subpix, cv2.RANSAC, 5.0
-        )
+        H, _ = cv2.findHomography(pts_src_subpix, pts_ref_subpix, cv2.RANSAC, 5.0)
         if H is None:
             H, _ = cv2.findHomography(pts_src_subpix, pts_ref_subpix)
-        proj = cv2.perspectiveTransform(
-            pts_src_subpix.reshape(-1, 1, 2), H
-        ).reshape(-1, 2)
+        proj = cv2.perspectiveTransform(pts_src_subpix.reshape(-1, 1, 2), H).reshape(
+            -1, 2
+        )
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
         rmse = float(np.sqrt(np.mean(residuals**2)))
 
@@ -654,6 +669,18 @@ def main():
     print(f"  Valid warped pixels: {warped_valid} px")
     print(f"  Mutual overlap area: {overlap_area} px ({overlap_pct:.1f}%)")
 
+    # Save transform model
+    if args.model == "similarity":
+        transform = TransformModel(transform_type="similarity", matrix=M_sim, rmse=rmse, mean_error=float(np.mean(residuals)))
+    elif args.model == "homography":
+        transform = TransformModel(transform_type="homography", matrix=H, rmse=rmse, mean_error=float(np.mean(residuals)))
+    else:
+        transform = TransformModel(transform_type="affine", matrix=M, rmse=rmse, mean_error=float(np.mean(residuals)))
+
+    stage_dir = pipeline.get_stage_dir("transform")
+    transform.save(stage_dir, "transform")
+    pipeline.record_stage("transform", stage_dir, metadata={"model": args.model, "rmse": rmse})
+
     # ------------------------------------------------------------------
     # 7. Generate Submission Products & Deliverables
     # ------------------------------------------------------------------
@@ -668,7 +695,12 @@ def main():
 
     # 3. Seamless Checkerboard
     checker = make_checkerboard(
-        warped_ohrc, lro_norm, mask_warped, lro_norm > 0, mask_overlap, grid_size=args.grid_size
+        warped_ohrc,
+        lro_norm,
+        mask_warped,
+        lro_norm > 0,
+        mask_overlap,
+        grid_size=args.grid_size,
     )
     cv2.imwrite(str(out_dir / "checkerboard.png"), checker)
 
@@ -700,30 +732,48 @@ def main():
     fig.patch.set_facecolor("#0d1117")
 
     axes[0, 0].imshow(ohrc_scaled, cmap="gray")
-    axes[0, 0].set_title(f"OHRC Scaled ({ohrc_scaled.shape})", color="white", fontweight="bold")
+    axes[0, 0].set_title(
+        f"OHRC Scaled ({ohrc_scaled.shape})", color="white", fontweight="bold"
+    )
     axes[0, 0].axis("off")
 
     axes[0, 1].imshow(lro_norm, cmap="gray")
-    axes[0, 1].set_title(f"LRO NAC Reference ({lro_norm.shape})", color="white", fontweight="bold")
+    axes[0, 1].set_title(
+        f"LRO NAC Reference ({lro_norm.shape})", color="white", fontweight="bold"
+    )
     axes[0, 1].axis("off")
 
     axes[0, 2].imshow(warped_ohrc, cmap="gray")
-    axes[0, 2].set_title(f"Warped OHRC ({args.model.upper()} — Continuous)", color="white", fontweight="bold")
+    axes[0, 2].set_title(
+        f"Warped OHRC ({args.model.upper()} — Continuous)",
+        color="white",
+        fontweight="bold",
+    )
     axes[0, 2].axis("off")
 
     axes[1, 0].imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
-    axes[1, 0].set_title(f"50/50 Overlay ({overlap_pct:.1f}% Overlap)", color="white", fontweight="bold")
+    axes[1, 0].set_title(
+        f"50/50 Overlay ({overlap_pct:.1f}% Overlap)", color="white", fontweight="bold"
+    )
     axes[1, 0].axis("off")
 
     axes[1, 1].imshow(checker, cmap="gray")
-    axes[1, 1].set_title(f"Seamless Checkerboard (Grid={args.grid_size}px)", color="white", fontweight="bold")
+    axes[1, 1].set_title(
+        f"Seamless Checkerboard (Grid={args.grid_size}px)",
+        color="white",
+        fontweight="bold",
+    )
     axes[1, 1].axis("off")
 
     # Control point spatial scatter
     axes[1, 2].set_xlim(0, ohrc_norm.shape[1])
     axes[1, 2].set_ylim(ohrc_norm.shape[0], 0)
     axes[1, 2].scatter(
-        pts_src_orig_clean[:, 0], pts_src_orig_clean[:, 1], c="#00ffcc", s=22, edgecolors="black"
+        pts_src_orig_clean[:, 0],
+        pts_src_orig_clean[:, 1],
+        c="#00ffcc",
+        s=22,
+        edgecolors="black",
     )
     axes[1, 2].set_title(
         f"Spatial Coverage ({len(pts_src_orig_clean)} Inliers, {unif['occupancy_pct']:.0f}% Occupied)",
@@ -769,6 +819,24 @@ def main():
     t_end = time.time()
     total_time = round(t_end - t_start, 2)
 
+    # Save evaluation metrics using the model
+    eval_metrics = EvaluationMetrics(
+        source_name="ohrc",
+        reference_name="lro_nac",
+        n_matches=len(src_scaled_all),
+        n_inliers=len(pts_src_clean),
+        inlier_ratio=float(len(pts_src_clean) / len(src_scaled_all)),
+        rmse=float(rmse),
+        mean_error=float(np.mean(residuals)),
+        max_error=float(np.max(residuals)),
+        spatial_uniformity_cv=float(cv_uniformity),
+        total_time=total_time,
+    )
+    stage_dir = pipeline.get_stage_dir("evaluation")
+    eval_metrics.save(stage_dir)
+    pipeline.record_stage("evaluation", stage_dir)
+
+    # Keep detailed metrics dict for backwards compatibility
     metrics = {
         "pipeline_version": "unified_v3_continuous",
         "transform_model": args.model,
@@ -816,10 +884,16 @@ def main():
     print("\n" + "=" * 75)
     print("REGISTRATION COMPLETE — SUMMARY OF RESULTS")
     print("=" * 75)
-    print(f"  Transform Model:          {args.model.upper()} (Single Continuous Surface)")
-    print(f"  Inlier Matches:           {len(pts_src_clean)} / {len(src_scaled_all)} ({100.0 * len(pts_src_clean) / len(src_scaled_all):.1f}%)")
+    print(
+        f"  Transform Model:          {args.model.upper()} (Single Continuous Surface)"
+    )
+    print(
+        f"  Inlier Matches:           {len(pts_src_clean)} / {len(src_scaled_all)} ({100.0 * len(pts_src_clean) / len(src_scaled_all):.1f}%)"
+    )
     print(f"  Registration RMSE:        {rmse:.3f} px (vs. Paper Baseline 0.62 px)")
-    print(f"  Spatial Coverage:         {unif['occupancy_pct']:.0f}% ({unif['hull_coverage_pct']:.1f}% hull area, CV={cv_uniformity:.3f})")
+    print(
+        f"  Spatial Coverage:         {unif['occupancy_pct']:.0f}% ({unif['hull_coverage_pct']:.1f}% hull area, CV={cv_uniformity:.3f})"
+    )
     print(f"  Mutual Overlap:           {overlap_area:,} px ({overlap_pct:.1f}%)")
     print(f"  Total Execution Time:     {total_time:.1f}s")
     print("=" * 75)

@@ -252,6 +252,7 @@ No changes needed - already had React 19, Vite, Tailwind CSS v4.
    ```python
    # Old
    from config import settings
+
    # New
    from lunarcv.config import settings
    ```

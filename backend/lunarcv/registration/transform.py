@@ -18,11 +18,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 
 # ---------------------------------------------------------------------------
 # Data class returned by compute_registration
@@ -96,9 +96,6 @@ def estimate_transform(
         if M is None:
             return None
         return np.vstack([M, [0.0, 0.0, 1.0]])
-
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +297,9 @@ def make_professional_suite(
                 checker[y:y2, x:x2][sub_m] = ref_c[y:y2, x:x2][sub_m]
 
     # 2. 50/50 Alpha Blend
-    blend = (src_c.astype(np.float32) * 0.5 + ref_c.astype(np.float32) * 0.5).astype(np.uint8)
+    blend = (src_c.astype(np.float32) * 0.5 + ref_c.astype(np.float32) * 0.5).astype(
+        np.uint8
+    )
 
     # 3. Canny Edge Contours
     edges_ref = cv2.Canny(ref_c, 50, 150)
@@ -337,7 +336,9 @@ def make_professional_suite(
 
     if out_path is not None:
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(out_path, dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor())
+        plt.savefig(
+            out_path, dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor()
+        )
 
     # Canvas to RGB array
     fig.canvas.draw()

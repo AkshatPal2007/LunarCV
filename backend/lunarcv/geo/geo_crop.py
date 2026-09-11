@@ -5,15 +5,13 @@ Uses the OHRC per-pixel geometry CSV and LRO footprint coordinates to
 compute the exact overlapping region between the two sensors, replacing
 hardcoded pixel ranges with geometry-derived crops.
 """
+
 from __future__ import annotations
 
 import csv
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
-
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GeoFootprint:
     """Geographic footprint of an image or sub-region."""
+
     min_lat: float
     max_lat: float
     min_lon: float
@@ -34,7 +33,7 @@ class GeoFootprint:
     def lon_range(self) -> float:
         return self.max_lon - self.min_lon
 
-    def intersection(self, other: GeoFootprint) -> Optional[GeoFootprint]:
+    def intersection(self, other: GeoFootprint) -> GeoFootprint | None:
         """Compute intersection with another footprint. Returns None if no overlap."""
         min_lat = max(self.min_lat, other.min_lat)
         max_lat = min(self.max_lat, other.max_lat)
@@ -65,7 +64,7 @@ def parse_ohrc_geometry_csv(csv_path: Path) -> dict:
     all_lons = []
     max_pixel = 0
 
-    with open(csv_path, "r") as f:
+    with open(csv_path) as f:
         reader = csv.reader(f)
         header = next(reader)
         logger.info(f"OHRC geometry CSV columns: {header}")
@@ -106,9 +105,9 @@ def parse_ohrc_geometry_csv(csv_path: Path) -> dict:
 
 def ohrc_patch_footprint(
     geom: dict,
-    row_range: Tuple[int, int],
-    col_range: Tuple[int, int],
-    image_shape: Tuple[int, int] = (90148, 12000),
+    row_range: tuple[int, int],
+    col_range: tuple[int, int],
+    image_shape: tuple[int, int] = (90148, 12000),
 ) -> GeoFootprint:
     """
     Compute the geographic footprint of an OHRC sub-patch.
@@ -134,7 +133,7 @@ def ohrc_patch_footprint(
     # Find latitude range: use nearest available scan lines
     sorted_scans = sorted(scan_to_lat.keys())
 
-    def lat_at_scan(target_scan: int) -> Tuple[float, float]:
+    def lat_at_scan(target_scan: int) -> tuple[float, float]:
         """Interpolate lat range at a target scan line."""
         if target_scan in scan_to_lat:
             return scan_to_lat[target_scan]
@@ -177,9 +176,9 @@ def ohrc_patch_footprint(
 def geo_to_lro_pixels(
     footprint: GeoFootprint,
     lro_footprint: GeoFootprint,
-    lro_shape: Tuple[int, int],
+    lro_shape: tuple[int, int],
     margin_frac: float = 0.05,
-) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+) -> tuple[tuple[int, int], tuple[int, int]]:
     """
     Convert a geographic footprint to LRO NAC pixel coordinates.
 
@@ -223,9 +222,7 @@ def geo_to_lro_pixels(
     return (r0, r1), (c0, c1)
 
 
-def compute_isotropic_scale(
-    src_gsd: float, ref_gsd: float
-) -> float:
+def compute_isotropic_scale(src_gsd: float, ref_gsd: float) -> float:
     """
     Compute the isotropic scale ratio between source and reference.
 

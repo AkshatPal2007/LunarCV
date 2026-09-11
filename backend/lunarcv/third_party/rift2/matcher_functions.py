@@ -74,6 +74,8 @@ def draw_matches(img1, img2, kp1, kp2, mutual_matches, matchesMask):
     print(f"Number of inliers after MAGSAC: {num_inliers}")
     print(f"Number of outliers after MAGSAC: {num_outliers}")
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     plt.imshow(img3)

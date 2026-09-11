@@ -3,10 +3,10 @@ metrics.py — Evaluation and Quality Gate for LunarCV.
 Centralises RMSE, spatial uniformity, inlier ratios and the
 final quality gate decision (ACCEPT / REJECT).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple
 
 import cv2
 import numpy as np
@@ -45,7 +45,7 @@ def calculate_rmse(
     pts_ref: np.ndarray,
     pts_src: np.ndarray,
     H: np.ndarray,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
     Forward and backward RMSE given homography H (ref → src).
 
@@ -61,11 +61,11 @@ def calculate_rmse(
         return warped[:, :2] / warped[:, 2:3]
 
     fwd = np.linalg.norm(_transform(pts_ref, H) - pts_src, axis=1)
-    rmse_fwd = float(np.sqrt(np.mean(fwd ** 2)))
+    rmse_fwd = float(np.sqrt(np.mean(fwd**2)))
 
     try:
         bwd = np.linalg.norm(_transform(pts_src, np.linalg.inv(H)) - pts_ref, axis=1)
-        rmse_bwd = float(np.sqrt(np.mean(bwd ** 2)))
+        rmse_bwd = float(np.sqrt(np.mean(bwd**2)))
     except np.linalg.LinAlgError:
         rmse_bwd = float("inf")
 
@@ -161,8 +161,8 @@ def evaluate_homography_holdout(
 
 def evaluate_spatial_uniformity(
     pts: np.ndarray,
-    img_shape: Tuple[int, int],
-    grid_size: Tuple[int, int] = (4, 4),
+    img_shape: tuple[int, int],
+    grid_size: tuple[int, int] = (4, 4),
 ) -> float:
     """
     Coefficient of variation of match counts across a regular grid.
@@ -189,9 +189,9 @@ def evaluate_spatial_uniformity(
 
 def quality_gate(
     metrics: RegistrationMetrics,
-    min_inliers: int = 6,        # Cross-sensor orbital strips yield 6-9 consistent inliers
-    max_rmse: float = 2.0,       # Sub-pixel is excellent; 2px is still good for cross-sensor
-    max_uniformity: float = 3.0, # Inherently clustered features in sparse cross-sensor pairs
+    min_inliers: int = 6,  # Cross-sensor orbital strips yield 6-9 consistent inliers
+    max_rmse: float = 2.0,  # Sub-pixel is excellent; 2px is still good for cross-sensor
+    max_uniformity: float = 3.0,  # Inherently clustered features in sparse cross-sensor pairs
 ) -> str:
     """
     Return "ACCEPT" or a "REJECT (<reason>)" string based on registration quality.

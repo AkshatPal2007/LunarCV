@@ -1,4 +1,5 @@
 """Frozen evaluation manifest and deterministic run provenance."""
+
 from __future__ import annotations
 
 import hashlib
@@ -45,7 +46,7 @@ class EvaluationManifest:
     pairs: tuple[EvaluationPair, ...]
 
     @classmethod
-    def load(cls, path: Path) -> "EvaluationManifest":
+    def load(cls, path: Path) -> EvaluationManifest:
         payload = json.loads(path.read_text(encoding="utf-8"))
         if payload.get("manifest_version") != MANIFEST_SCHEMA_VERSION:
             raise ValueError("Unsupported evaluation manifest version")
