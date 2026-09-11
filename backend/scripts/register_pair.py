@@ -531,7 +531,9 @@ def main():
     )
     stage_dir = pipeline.get_stage_dir("matching")
     matches.save(stage_dir)
-    pipeline.record_stage("matching", stage_dir, metadata={"n_matches": len(src_orig_all)})
+    pipeline.record_stage(
+        "matching", stage_dir, metadata={"n_matches": len(src_orig_all)}
+    )
 
     # Outlier rejection via Global MAGSAC++:
     if args.model == "similarity":
@@ -582,7 +584,9 @@ def main():
     matches.transform_type = args.model
     stage_dir = pipeline.get_stage_dir("outlier_rejection")
     matches.save(stage_dir)
-    pipeline.record_stage("outlier_rejection", stage_dir, metadata={"n_inliers": int(inliers.sum())})
+    pipeline.record_stage(
+        "outlier_rejection", stage_dir, metadata={"n_inliers": int(inliers.sum())}
+    )
 
     # Sub-pixel refinement
     pts_src_subpix, pts_ref_subpix, subpix_stats = refine_matches(
@@ -617,7 +621,9 @@ def main():
             pts_src_subpix, pts_ref_subpix, method=cv2.RANSAC, ransacReprojThreshold=5.0
         )
         if M_sim is None:
-            M_sim, final_mask = cv2.estimateAffinePartial2D(pts_src_subpix, pts_ref_subpix)
+            M_sim, final_mask = cv2.estimateAffinePartial2D(
+                pts_src_subpix, pts_ref_subpix
+            )
         pts_hom = np.hstack([pts_src_subpix, np.ones((len(pts_src_subpix), 1))])
         proj = (M_sim @ pts_hom.T).T
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
@@ -643,10 +649,10 @@ def main():
         proj = cv2.perspectiveTransform(pts_src_subpix.reshape(-1, 1, 2), H).reshape(
             -1, 2
         )
-            H, final_mask = cv2.findHomography(pts_src_subpix, pts_ref_subpix)
-        proj = cv2.perspectiveTransform(
-            pts_src_subpix.reshape(-1, 1, 2), H
-        ).reshape(-1, 2)
+        H, final_mask = cv2.findHomography(pts_src_subpix, pts_ref_subpix)
+        proj = cv2.perspectiveTransform(pts_src_subpix.reshape(-1, 1, 2), H).reshape(
+            -1, 2
+        )
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
         rmse = float(np.sqrt(np.mean(residuals**2)))
 
@@ -733,15 +739,32 @@ def main():
 
     # Save transform model
     if args.model == "similarity":
-        transform = TransformModel(transform_type="similarity", matrix=M_sim, rmse=rmse, mean_error=float(np.mean(residuals)))
+        transform = TransformModel(
+            transform_type="similarity",
+            matrix=M_sim,
+            rmse=rmse,
+            mean_error=float(np.mean(residuals)),
+        )
     elif args.model == "homography":
-        transform = TransformModel(transform_type="homography", matrix=H, rmse=rmse, mean_error=float(np.mean(residuals)))
+        transform = TransformModel(
+            transform_type="homography",
+            matrix=H,
+            rmse=rmse,
+            mean_error=float(np.mean(residuals)),
+        )
     else:
-        transform = TransformModel(transform_type="affine", matrix=M, rmse=rmse, mean_error=float(np.mean(residuals)))
+        transform = TransformModel(
+            transform_type="affine",
+            matrix=M,
+            rmse=rmse,
+            mean_error=float(np.mean(residuals)),
+        )
 
     stage_dir = pipeline.get_stage_dir("transform")
     transform.save(stage_dir, "transform")
-    pipeline.record_stage("transform", stage_dir, metadata={"model": args.model, "rmse": rmse})
+    pipeline.record_stage(
+        "transform", stage_dir, metadata={"model": args.model, "rmse": rmse}
+    )
 
     # ------------------------------------------------------------------
     # 7. Generate Submission Products & Deliverables

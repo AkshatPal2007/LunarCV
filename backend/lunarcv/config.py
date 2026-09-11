@@ -49,9 +49,9 @@ OHRC_GEOM_CSV = (
     / "ch2_ohr_ncp_20210401T2357376656_g_grd_d18.csv"
 )
 
-OHRC_SHAPE = (90148, 12000)
+OHRC_SHAPE = (77026, 12000)
 OHRC_DTYPE = "uint8"
-OHRC_OFFSET = 0
+OHRC_OFFSET = 7744  # PDS label header
 OHRC_GSD = 0.26  # meters / pixel
 OHRC_LAT_RANGE = (-13.889, -13.055)
 OHRC_LON_RANGE = (25.128, 25.246)
