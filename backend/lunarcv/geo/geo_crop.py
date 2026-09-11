@@ -222,6 +222,24 @@ def geo_to_lro_pixels(
     return (r0, r1), (c0, c1)
 
 
+def estimate_axis_scales(
+    source_shape: Tuple[int, int],
+    reference_shape: Tuple[int, int],
+) -> tuple[float, float]:
+    """Return source-to-reference scale divisors for an overlapping crop.
+
+    Raw orbital strips can be anisotropic because of detector summing and
+    camera geometry. Once both crops describe the same footprint, their pixel
+    dimensions provide the reliable per-axis coarse scale: divide source X/Y
+    coordinates by the returned values to express them in reference pixels.
+    """
+    source_h, source_w = source_shape
+    reference_h, reference_w = reference_shape
+    if min(source_h, source_w, reference_h, reference_w) <= 0:
+        raise ValueError("Overlapping crop dimensions must be positive")
+    return source_w / reference_w, source_h / reference_h
+
+
 def compute_isotropic_scale(src_gsd: float, ref_gsd: float) -> float:
     """
     Compute the isotropic scale ratio between source and reference.

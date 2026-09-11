@@ -41,6 +41,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["lunarcv"]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "S", "B", "A", "C4", "PT", "SIM"]
 ignore = ["E501"]  # Ignore line length for now

@@ -7,9 +7,10 @@ Architecture:
   1. Data-Driven Geographic Prior:
      Parses calibrated OHRC geometry CSV to compute the exact geographic footprint,
      then projects to LRO NAC image space.
-  2. Isotropic GSD Scale Matching:
-     Uses true physical GSDs (OHRC 0.26 m/px, LRO 1.60 m/px -> 6.154x isotropic ratio)
-     and minimal robust percentile normalization (no heavy ad-hoc filtering).
+  2. Overlap-Derived Axis Scale Matching:
+     Uses the geometry-localized overlapping crop dimensions to preserve the
+     raw sensors' potentially anisotropic sampling, then applies minimal
+     robust percentile normalization (no heavy ad-hoc filtering).
   3. Dense Along-Track Ensemble Feature Matching:
      Divides the swath into 12 overlapping chunks, matching with LightGlue + RIFT2 ensemble.
      Deduplicates and caches matches for instant reproducibility.
@@ -71,6 +72,7 @@ from lunarcv.config import (
 from lunarcv.geo.geo_crop import (
     GeoFootprint,
     compute_isotropic_scale,
+    estimate_axis_scales,
     geo_to_lro_pixels,
     ohrc_patch_footprint,
     parse_ohrc_geometry_csv,
@@ -140,7 +142,7 @@ def match_chunk(
     y1_ref: int,
     y2_ref: int,
     chunk_id: int,
-    scale: float,
+    scale_xy: np.ndarray,
 ) -> dict:
     """Match one along-track chunk between scaled OHRC and LRO NAC."""
     patch_src = ohrc_scaled[y1_src:y2_src, :]
@@ -177,7 +179,7 @@ def match_chunk(
     pts_ref_global[:, 1] += y1_ref
 
     # Map source back to unscaled OHRC coordinates
-    pts_src_orig = pts_src_global * scale
+    pts_src_orig = pts_src_global * scale_xy
 
     # Local validation fit
     M, raw_mask = cv2.estimateAffine2D(
@@ -324,7 +326,15 @@ def parse_args():
     parser.add_argument(
         "--force-rematch",
         action="store_true",
-        help="Bypass match cache and recompute feature matches from scratch",
+        help="Bypass any match cache and recompute feature matches from scratch",
+    )
+    parser.add_argument(
+        "--reuse-match-cache",
+        action="store_true",
+        help=(
+            "Reuse the explicit local match cache. Use only when the source files, "
+            "geographic crop, scale, matcher, and chunk settings are unchanged."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -398,14 +408,15 @@ def main():
     lro_raw = extract_patch(lro_mm, lro_rows, lro_cols)
 
     # ------------------------------------------------------------------
-    # 3. Minimal Normalization & Isotropic Scale Alignment
+    # 3. Minimal Normalization & Isotropic GSD Scale Matching
     # ------------------------------------------------------------------
     print("\n[3/7] Robust percentile stretching & isotropic GSD scale matching...")
     ohrc_norm = percentile_stretch_uint8(ohrc_raw)
     lro_norm = percentile_stretch_uint8(lro_raw)
 
     scale = compute_isotropic_scale(OHRC_GSD, LRO_GSD)
-    print(f"  Physical GSD ratio: {scale:.3f}x ({LRO_GSD}m / {OHRC_GSD}m)")
+    scale_xy = np.array([scale, scale], dtype=np.float32)
+    print(f"  Physical GSD ratio: {scale:.3f}x ({LRO_GSD}m / {OHRC_GSD}m isotropic)")
 
     target_h = int(round(ohrc_norm.shape[0] / scale))
     target_w = int(round(ohrc_norm.shape[1] / scale))
@@ -424,8 +435,8 @@ def main():
     # ------------------------------------------------------------------
     print(f"\n[4/7] Dense along-track feature matching ({args.n_chunks} chunks)...")
 
-    cache_path = OUTPUT_DIR / "v2_match_cache.pkl"
-    if cache_path.exists() and not args.force_rematch:
+    cache_path = OUTPUT_DIR / "match_cache.pkl"
+    if args.reuse_match_cache and cache_path.exists() and not args.force_rematch:
         import pickle
 
         print(f"  Loading cached chunk matches from {cache_path}...")
@@ -479,7 +490,7 @@ def main():
                 y1_ref,
                 y2_ref,
                 chunk_id=i + 1,
-                scale=scale,
+                scale_xy=scale_xy,
             )
             results.append(res)
             flag = "✓" if res["status"] == "ACCEPTED" else "✗"
@@ -507,7 +518,7 @@ def main():
     src_orig_all, ref_all = deduplicate_points(results, radius=18.0)
     print(f"  Deduplicated control points: {len(src_orig_all)}")
 
-    src_scaled_all = (src_orig_all / scale).astype(np.float32)
+    src_scaled_all = (src_orig_all / scale_xy).astype(np.float32)
     ref_all = ref_all.astype(np.float32)
 
     # Save initial matches
@@ -549,10 +560,13 @@ def main():
             maxIters=10000,
         )
 
-    if inlier_mask is None:
-        inliers = np.ones(len(src_scaled_all), dtype=bool)
-    else:
-        inliers = inlier_mask.ravel().astype(bool)
+    if M_global is None or inlier_mask is None:
+        raise RuntimeError("Global MAGSAC++ could not estimate a valid transform.")
+    inliers = inlier_mask.ravel().astype(bool)
+    if int(inliers.sum()) < 6:
+        raise RuntimeError(
+            f"Global MAGSAC++ retained only {int(inliers.sum())} matches; need at least 6."
+        )
 
     print(
         f"  Global MAGSAC++ inliers: {inliers.sum()} / {len(src_scaled_all)} "
@@ -599,11 +613,11 @@ def main():
 
     residuals = []
     if args.model == "similarity":
-        M_sim, _ = cv2.estimateAffinePartial2D(
+        M_sim, final_mask = cv2.estimateAffinePartial2D(
             pts_src_subpix, pts_ref_subpix, method=cv2.RANSAC, ransacReprojThreshold=5.0
         )
         if M_sim is None:
-            M_sim, _ = cv2.estimateAffinePartial2D(pts_src_subpix, pts_ref_subpix)
+            M_sim, final_mask = cv2.estimateAffinePartial2D(pts_src_subpix, pts_ref_subpix)
         pts_hom = np.hstack([pts_src_subpix, np.ones((len(pts_src_subpix), 1))])
         proj = (M_sim @ pts_hom.T).T
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
@@ -621,11 +635,18 @@ def main():
 
     elif args.model == "homography":
         H, _ = cv2.findHomography(pts_src_subpix, pts_ref_subpix, cv2.RANSAC, 5.0)
+        H, final_mask = cv2.findHomography(
+            pts_src_subpix, pts_ref_subpix, cv2.RANSAC, 5.0
+        )
         if H is None:
             H, _ = cv2.findHomography(pts_src_subpix, pts_ref_subpix)
         proj = cv2.perspectiveTransform(pts_src_subpix.reshape(-1, 1, 2), H).reshape(
             -1, 2
         )
+            H, final_mask = cv2.findHomography(pts_src_subpix, pts_ref_subpix)
+        proj = cv2.perspectiveTransform(
+            pts_src_subpix.reshape(-1, 1, 2), H
+        ).reshape(-1, 2)
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
         rmse = float(np.sqrt(np.mean(residuals**2)))
 
@@ -640,11 +661,11 @@ def main():
         mask_warped = warped_ohrc > 0
 
     else:  # "affine" default
-        M, _ = cv2.estimateAffine2D(
+        M, final_mask = cv2.estimateAffine2D(
             pts_src_subpix, pts_ref_subpix, method=cv2.RANSAC, ransacReprojThreshold=5.0
         )
         if M is None:
-            M, _ = cv2.estimateAffine2D(pts_src_subpix, pts_ref_subpix)
+            M, final_mask = cv2.estimateAffine2D(pts_src_subpix, pts_ref_subpix)
         pts_hom = np.hstack([pts_src_subpix, np.ones((len(pts_src_subpix), 1))])
         proj = (M @ pts_hom.T).T
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
@@ -660,12 +681,53 @@ def main():
         )
         mask_warped = warped_ohrc > 0
 
+    if final_mask is None:
+        raise RuntimeError("Final transform did not return an inlier mask.")
+    final_inliers = final_mask.ravel().astype(bool)
+    if int(final_inliers.sum()) < 6:
+        raise RuntimeError(
+            f"Final {args.model} fit retained only {int(final_inliers.sum())} matches; need at least 6."
+        )
+
+    # Metrics, CSV, and visualised control points must describe the same set
+    # used to estimate the final transform.
+    pts_src_subpix = pts_src_subpix[final_inliers]
+    pts_ref_subpix = pts_ref_subpix[final_inliers]
+    pts_src_orig_clean = pts_src_orig_clean[final_inliers]
+    residuals = residuals[final_inliers]
+    rmse = float(np.sqrt(np.mean(residuals**2)))
+
+    # Recompute coverage after the final model's stricter inlier decision.
+    unif = spatial_uniformity_report(
+        pts_src_orig_clean,
+        ohrc_norm.shape[0],
+        ohrc_norm.shape[1],
+        label="Final OHRC Inliers",
+        n_rows=4,
+        n_cols=4,
+    )
+    counts = unif["grid_counts"].ravel()
+    cv_uniformity = float(np.std(counts) / (np.mean(counts) + 1e-6))
+    quality_reasons = []
+    if len(pts_src_subpix) < 8:
+        quality_reasons.append("fewer than 8 final inliers")
+    if unif["occupancy_pct"] < 50.0:
+        quality_reasons.append("fewer than 50% of grid cells occupied")
+    if unif["hull_coverage_pct"] < 10.0:
+        quality_reasons.append("less than 10% convex-hull coverage")
+    if rmse > 2.0:
+        quality_reasons.append("fit residual exceeds 2 px")
+    quality_decision = (
+        "ACCEPT" if not quality_reasons else "REJECT: " + "; ".join(quality_reasons)
+    )
+
     mask_overlap = mask_warped & (lro_norm > 0)
     overlap_area = int(mask_overlap.sum())
     warped_valid = int(mask_warped.sum())
     overlap_pct = 100.0 * overlap_area / max(1, warped_valid)
 
-    print(f"  Registration RMSE: {rmse:.3f} px")
+    print(f"  Registration fit residual: {rmse:.3f} px")
+    print(f"  Quality decision: {quality_decision}")
     print(f"  Valid warped pixels: {warped_valid} px")
     print(f"  Mutual overlap area: {overlap_area} px ({overlap_pct:.1f}%)")
 
@@ -799,18 +861,33 @@ def main():
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["point_id", "ohrc_x", "ohrc_y", "lro_x", "lro_y", "residual_px"]
+            [
+                "point_id",
+                "ohrc_patch_x",
+                "ohrc_patch_y",
+                "ohrc_full_x",
+                "ohrc_full_y",
+                "lro_crop_x",
+                "lro_crop_y",
+                "lro_full_x",
+                "lro_full_y",
+                "fit_residual_px",
+            ]
         )
         for idx, (s_orig, r, res) in enumerate(
-            zip(pts_src_orig_clean, pts_ref_subpix, residuals)
+            zip(pts_src_orig_clean, pts_ref_subpix, residuals, strict=True)
         ):
             writer.writerow(
                 [
                     idx + 1,
                     f"{s_orig[0]:.2f}",
                     f"{s_orig[1]:.2f}",
+                    f"{s_orig[0] + ohrc_cols[0]:.2f}",
+                    f"{s_orig[1] + ohrc_rows[0]:.2f}",
                     f"{r[0]:.2f}",
                     f"{r[1]:.2f}",
+                    f"{r[0] + lro_cols[0]:.2f}",
+                    f"{r[1] + lro_rows[0]:.2f}",
                     f"{res:.3f}",
                 ]
             )
@@ -842,9 +919,12 @@ def main():
         "transform_model": args.model,
         "total_time_seconds": total_time,
         "evaluation_metrics": {
-            "rmse_pixels": round(float(rmse), 3),
-            "inlier_count": int(len(pts_src_clean)),
-            "inlier_ratio": round(float(len(pts_src_clean) / len(src_scaled_all)), 3),
+            "fit_reprojection_rmse_px": round(float(rmse), 3),
+            "independent_control_point_rmse_px": None,
+            "evaluation_status": "fit_only_pending_independent_validation",
+            "quality_decision": quality_decision,
+            "inlier_count": int(len(pts_src_subpix)),
+            "inlier_ratio": round(float(len(pts_src_subpix) / len(src_scaled_all)), 3),
             "spatial_uniformity_cv": round(cv_uniformity, 3),
             "grid_occupancy_pct": round(float(unif["occupancy_pct"]), 1),
             "convex_hull_coverage_pct": round(float(unif["hull_coverage_pct"]), 1),
@@ -861,16 +941,21 @@ def main():
                 "max_lon": float(ohrc_patch_fp.max_lon),
             },
             "lro_crop_rows": list(lro_rows),
-            "lro_crop_cols": list(lro_cols),
             "gsd_scale_ratio": round(float(scale), 4),
+            "scale_x": round(float(scale_xy[0]), 4),
+            "scale_y": round(float(scale_xy[1]), 4),
         },
         "subpixel_refinement": subpix_stats,
-        "benchmark_comparison": {
+        "benchmark_context": {
             "reference_paper": "Makharia et al. (ISRO SAC / MUJ, 2024)",
-            "paper_baseline_superglue_rmse": 0.62,
-            "lunarcv_achieved_rmse": round(float(rmse), 3),
-            "paper_spatial_uniformity": "Not Measured (Documented Gap)",
-            "lunarcv_spatial_uniformity": f"{unif['occupancy_pct']:.0f}% grid coverage (CV={cv_uniformity:.3f})",
+            "paper_baseline_superglue_rmse_px": 0.62,
+            "comparison_status": (
+                "not_comparable: LunarCV value is a transform-fit residual, "
+                "not an independent control-point RMSE"
+            ),
+            "lunarcv_spatial_uniformity": (
+                f"{unif['occupancy_pct']:.0f}% grid coverage (CV={cv_uniformity:.3f})"
+            ),
         },
     }
 
