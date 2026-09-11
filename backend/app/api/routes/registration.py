@@ -113,8 +113,6 @@ async def get_job_results(job_id: str):
             status_code=400, detail=f"Job not ready. Current status: {job['status']}"
         )
 
-    results_dir = settings.RESULTS_DIR / job_id
-
     return RegistrationResults(
         job_id=job_id,
         status=job["status"],

@@ -319,7 +319,7 @@ def make_professional_suite(
         (false_color, "4. Multi-Modal Alignment (R/B: OHRC, G: LRO)", None),
     ]
 
-    for ax, (img, title, cmap) in zip(axes, panels):
+    for ax, (img, title, cmap) in zip(axes, panels, strict=True):
         ax.set_facecolor("#161b22")
         if cmap:
             ax.imshow(img, cmap=cmap)

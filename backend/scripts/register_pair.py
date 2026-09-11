@@ -42,16 +42,6 @@ import cv2
 import matplotlib
 import numpy as np
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
-warnings.filterwarnings("ignore")
-
-# backend/scripts/register_pair.py -> backend/
-BACKEND_DIR = Path(__file__).resolve().parent.parent
-if str(BACKEND_DIR) not in sys.path:
-    sys.path.insert(0, str(BACKEND_DIR))
-
 from lunarcv.config import (
     FIGURES_DIR,
     LRO_GSD,
@@ -72,12 +62,12 @@ from lunarcv.config import (
 from lunarcv.geo.geo_crop import (
     GeoFootprint,
     compute_isotropic_scale,
-    estimate_axis_scales,
     geo_to_lro_pixels,
     ohrc_patch_footprint,
     parse_ohrc_geometry_csv,
 )
 from lunarcv.io.raster import extract_patch, load_lro_nac_memmap, load_ohrc_memmap
+from lunarcv.models import EvaluationMetrics, MatchSet, Pipeline, TransformModel
 from lunarcv.registration.spatial_uniformity import spatial_uniformity_report
 from lunarcv.registration.subpixel import refine_matches
 from lunarcv.registration.transform import (
@@ -85,7 +75,16 @@ from lunarcv.registration.transform import (
     make_overlay,
     make_professional_suite,
 )
-from lunarcv.models import Pipeline, MatchSet, TransformModel, EvaluationMetrics
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+warnings.filterwarnings("ignore")
+
+# backend/scripts/register_pair.py -> backend/
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 # =============================================================================
 # Helper Functions
@@ -258,7 +257,7 @@ def draw_matches(
     ax.set_title(title, fontsize=13, fontweight="bold", pad=10)
 
     colors = plt.cm.rainbow(np.linspace(0, 1, max(1, len(pts_src))))
-    for i, (ps, pr) in enumerate(zip(pts_src, pts_ref)):
+    for i, (ps, pr) in enumerate(zip(pts_src, pts_ref, strict=True)):
         ax.plot(
             [ps[0], pr[0] + w_s],
             [ps[1], pr[1]],
@@ -441,7 +440,7 @@ def main():
 
         print(f"  Loading cached chunk matches from {cache_path}...")
         with open(cache_path, "rb") as f:
-            results = pickle.load(f)
+            results = pickle.load(f)  # noqa: S301
         for res in results:
             flag = "✓" if res["status"] == "ACCEPTED" else "✗"
             print(

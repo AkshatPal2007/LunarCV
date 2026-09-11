@@ -56,6 +56,9 @@ ignore = ["E501"]  # Ignore line length for now
 # Mathematical/CV code uses standard matrix notation (H, M, T, R, etc.)
 "lunarcv/registration/outlier_rejection.py" = ["N806"]
 "lunarcv/registration/transform.py" = ["N806", "N803"]
-"scripts/register_pair.py" = ["N806"]
+"lunarcv/matching/adaptive.py" = ["N806", "N803"]
+"lunarcv/evaluation/metrics.py" = ["N806", "N803"]
+"scripts/register_pair.py" = ["N806", "N803"]
+"app/**/*.py" = ["B008"]
 # Third-party code should not be modified
 "lunarcv/third_party/**/*.py" = ["N806", "N803", "A001", "E741", "B028", "C408"]

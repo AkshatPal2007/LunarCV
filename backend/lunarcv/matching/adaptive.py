@@ -127,7 +127,7 @@ def adaptive_chunked_match(
 
     best_results = []
 
-    for ci, (frac_s, frac_e) in enumerate(chunk_ranges):
+    for _ci, (frac_s, frac_e) in enumerate(chunk_ranges):
         best_in = 0
         best_raw = 0
         best_rmse = 999.0

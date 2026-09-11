@@ -132,7 +132,7 @@ class MatchSet:
         stem = f"matches_{self.source_name}_{self.reference_name}"
 
         # Save arrays
-        arrays = {
+        arrays: dict[str, Any] = {
             "source_kpts": self.source_kpts,
             "reference_kpts": self.reference_kpts,
         }
@@ -171,8 +171,8 @@ class MatchSet:
         with np.load(data_path) as npz:
             source_kpts = npz["source_kpts"]
             reference_kpts = npz["reference_kpts"]
-            confidence = npz["confidence"] if "confidence" in npz else None
-            inlier_mask = npz["inlier_mask"] if "inlier_mask" in npz else None
+            confidence = npz.get("confidence", None)
+            inlier_mask = npz.get("inlier_mask", None)
 
         return cls(
             source_name=metadata["source_name"],
@@ -244,13 +244,9 @@ class TransformModel:
 
         if data_path.exists():
             with np.load(data_path) as npz:
-                matrix = npz["matrix"] if "matrix" in npz else None
-                source_control = (
-                    npz["source_control"] if "source_control" in npz else None
-                )
-                reference_control = (
-                    npz["reference_control"] if "reference_control" in npz else None
-                )
+                matrix = npz.get("matrix", None)
+                source_control = npz.get("source_control", None)
+                reference_control = npz.get("reference_control", None)
 
         return cls(
             transform_type=metadata["transform_type"],

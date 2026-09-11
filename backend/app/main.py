@@ -4,16 +4,16 @@ FastAPI application entry point for LunarCV.
 
 import warnings
 
-# Suppress torch.jit.script deprecation warning from dependencies
-warnings.filterwarnings("ignore", category=FutureWarning, module="torch.jit._script")
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.routes import health, images, registration, upload
 from app.config import settings
-from app.exceptions import LunarCVException
+from app.exceptions import LunarCVError
+
+# Suppress torch.jit.script deprecation warning from dependencies
+warnings.filterwarnings("ignore", category=FutureWarning, module="torch.jit._script")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,8 +32,8 @@ app.add_middleware(
 
 
 # Global exception handler for LunarCV exceptions
-@app.exception_handler(LunarCVException)
-async def lunarcv_exception_handler(request, exc: LunarCVException):
+@app.exception_handler(LunarCVError)
+async def lunarcv_exception_handler(request, exc: LunarCVError):
     """Handle LunarCV exceptions with user-friendly messages."""
     return JSONResponse(status_code=400, content={"detail": exc.user_message})
 

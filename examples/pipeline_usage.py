@@ -8,7 +8,6 @@ and maintain clean boundaries between stages.
 from pathlib import Path
 
 import numpy as np
-
 from lunarcv.models import (
     EvaluationMetrics,
     LunarImage,

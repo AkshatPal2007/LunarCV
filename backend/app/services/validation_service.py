@@ -1,5 +1,6 @@
 """Validation service for image files and registration pairs."""
 
+from contextlib import suppress
 from pathlib import Path
 
 import cv2
@@ -131,7 +132,7 @@ def validate_registration_pair(
         }
 
     # Try to get dimensions for standard formats
-    try:
+    with suppress(Exception):
         source_ext = source_path.suffix.lower()
         ref_ext = ref_path.suffix.lower()
 
@@ -165,9 +166,5 @@ def validate_registration_pair(
                     warnings.append(
                         f"Large size difference between images (ratio: {size_ratio:.1f}x) - verify this is the correct pair"
                     )
-
-    except Exception:
-        # If we can't validate dimensions, that's okay - the image_loader will handle it
-        pass
 
     return {"valid": True, "error": None, "warnings": warnings}

@@ -127,7 +127,7 @@ def ohrc_patch_footprint(
     total_rows, total_cols = image_shape
 
     scan_to_lat = geom["scan_to_lat"]
-    scan_to_lon = geom["scan_to_lon"]
+    scan_to_lon = geom["scan_to_lon"]  # noqa: F841
     full_fp = geom["full_footprint"]
 
     # Find latitude range: use nearest available scan lines
@@ -223,8 +223,8 @@ def geo_to_lro_pixels(
 
 
 def estimate_axis_scales(
-    source_shape: Tuple[int, int],
-    reference_shape: Tuple[int, int],
+    source_shape: tuple[int, int],
+    reference_shape: tuple[int, int],
 ) -> tuple[float, float]:
     """Return source-to-reference scale divisors for an overlapping crop.
 
