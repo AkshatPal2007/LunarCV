@@ -1,5 +1,9 @@
-"""
-subpixel.py — Sub-pixel refinement of geometric correspondences.
+"""Paired local sub-pixel refinement for lunar correspondences.
+
+Independent corner snapping can move a valid cross-sensor match to unrelated
+corners. This module keeps the reference point fixed and searches for its
+gradient pattern near the source point; a quadratic interpolation of the
+correlation peak supplies the sub-pixel source coordinate.
 """
 
 from __future__ import annotations
@@ -8,92 +12,104 @@ import cv2
 import numpy as np
 
 
+def _gradient_magnitude(image: np.ndarray) -> np.ndarray:
+    """Return a float32, illumination-robust local-structure image."""
+    image_f = image.astype(np.float32)
+    gx = cv2.Sobel(image_f, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(image_f, cv2.CV_32F, 0, 1, ksize=3)
+    return cv2.magnitude(gx, gy)
+
+
+def _quadratic_peak_offset(values: np.ndarray, index: int) -> float:
+    """Estimate a one-dimensional peak offset in [-1, 1]."""
+    if index <= 0 or index >= len(values) - 1:
+        return 0.0
+    left = float(values[index - 1])
+    center = float(values[index])
+    right = float(values[index + 1])
+    denominator = left - 2.0 * center + right
+    if abs(denominator) < 1e-8:
+        return 0.0
+    return float(np.clip(0.5 * (left - right) / denominator, -1.0, 1.0))
+
+
 def refine_matches(
     source_image: np.ndarray,
     reference_image: np.ndarray,
     source_points: np.ndarray,
     reference_points: np.ndarray,
-    win_size: tuple[int, int] = (5, 5),
-    zero_zone: tuple[int, int] = (-1, -1),
-    criteria: tuple[int, int, float] = (
-        cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,
-        40,
-        0.001,
-    ),
-    min_eigen_threshold: float = 1e-4,
+    template_radius: int = 7,
+    search_radius: int = 5,
+    min_correlation: float = 0.20,
 ) -> tuple[np.ndarray, np.ndarray, dict]:
+    """Refine correspondences with paired gradient NCC.
+
+    Inputs must already be approximately scale-aligned. Unreliable points are
+    retained unchanged instead of being forced onto unrelated image corners.
     """
-    Refines source and reference match points independently using cv2.cornerSubPix.
+    if source_image.dtype != np.uint8 or reference_image.dtype != np.uint8:
+        raise TypeError("Paired sub-pixel refinement requires uint8 grayscale images")
+    if source_image.ndim != 2 or reference_image.ndim != 2:
+        raise ValueError("Paired sub-pixel refinement requires 2D grayscale images")
+    if len(source_points) != len(reference_points):
+        raise ValueError("Source and reference point counts must match")
+    if template_radius < 2 or search_radius < 1:
+        raise ValueError("template_radius must be >= 2 and search_radius >= 1")
 
-    Checks if points have sufficient local structure (minimum eigenvalue) and are within bounds.
-    If a point is unsuitable, it retains its original coordinate and is marked as unrefinable.
+    src_points = source_points.astype(np.float32, copy=True)
+    ref_points = reference_points.astype(np.float32, copy=True)
+    refined_src = src_points.copy()
+    scores = np.full(len(src_points), np.nan, dtype=np.float32)
+    src_grad = _gradient_magnitude(source_image)
+    ref_grad = _gradient_magnitude(reference_image)
+    margin = template_radius + search_radius
 
-    Returns:
-        pts_src_refined : ndarray (N, 2)
-        pts_ref_refined : ndarray (N, 2)
-        stats : dict containing metrics
-    """
-    if source_image.dtype != np.uint8:
-        raise TypeError(f"source_image must be uint8, got {source_image.dtype}")
-    if source_image.ndim != 2:
-        raise ValueError(f"source_image must be 2D, got {source_image.ndim}D")
-    if reference_image.dtype != np.uint8:
-        raise TypeError(f"reference_image must be uint8, got {reference_image.dtype}")
-    if reference_image.ndim != 2:
-        raise ValueError(f"reference_image must be 2D, got {reference_image.ndim}D")
+    for index, (src_pt, ref_pt) in enumerate(zip(src_points, ref_points, strict=True)):
+        sx, sy = int(round(float(src_pt[0]))), int(round(float(src_pt[1])))
+        rx, ry = int(round(float(ref_pt[0]))), int(round(float(ref_pt[1])))
+        if (
+            sx - margin < 0
+            or sx + margin >= source_image.shape[1]
+            or sy - margin < 0
+            or sy + margin >= source_image.shape[0]
+            or rx - template_radius < 0
+            or rx + template_radius >= reference_image.shape[1]
+            or ry - template_radius < 0
+            or ry + template_radius >= reference_image.shape[0]
+        ):
+            continue
 
-    pts_src = source_points.copy().astype(np.float32)
-    pts_ref = reference_points.copy().astype(np.float32)
+        template = ref_grad[
+            ry - template_radius : ry + template_radius + 1,
+            rx - template_radius : rx + template_radius + 1,
+        ]
+        search = src_grad[
+            sy - margin : sy + margin + 1,
+            sx - margin : sx + margin + 1,
+        ]
+        response = cv2.matchTemplate(search, template, cv2.TM_CCOEFF_NORMED)
+        _, peak_score, _, peak = cv2.minMaxLoc(response)
+        if not np.isfinite(peak_score) or peak_score < min_correlation:
+            continue
 
-    n_pts = len(pts_src)
+        peak_x, peak_y = peak
+        offset_x = _quadratic_peak_offset(response[peak_y, :], peak_x)
+        offset_y = _quadratic_peak_offset(response[:, peak_x], peak_y)
+        refined_src[index] = (
+            sx - search_radius + peak_x + offset_x,
+            sy - search_radius + peak_y + offset_y,
+        )
+        scores[index] = peak_score
 
-    src_refined = pts_src.copy()
-    ref_refined = pts_ref.copy()
-
-    src_mask = np.zeros(n_pts, dtype=bool)
-    ref_mask = np.zeros(n_pts, dtype=bool)
-
-    def check_local_structure(img, pt, w_size):
-        x, y = int(round(pt[0])), int(round(pt[1]))
-        wx, wy = w_size
-        if x - wx < 0 or x + wx >= img.shape[1] or y - wy < 0 or y + wy >= img.shape[0]:
-            return False
-
-        patch = img[y - wy : y + wy + 1, x - wx : x + wx + 1]
-        eigen_img = cv2.cornerMinEigenVal(patch, blockSize=3, ksize=3)
-        center_eigen = eigen_img[wy, wx]
-
-        return center_eigen > min_eigen_threshold
-
-    for i in range(n_pts):
-        if check_local_structure(source_image, pts_src[i], win_size):
-            p = np.array([[pts_src[i]]], dtype=np.float32)
-            cv2.cornerSubPix(source_image, p, win_size, zero_zone, criteria)
-            src_refined[i] = p[0, 0]
-            src_mask[i] = True
-
-        if check_local_structure(reference_image, pts_ref[i], win_size):
-            p = np.array([[pts_ref[i]]], dtype=np.float32)
-            cv2.cornerSubPix(reference_image, p, win_size, zero_zone, criteria)
-            ref_refined[i] = p[0, 0]
-            ref_mask[i] = True
-
-    src_disp = np.linalg.norm(src_refined - pts_src, axis=1)
-    ref_disp = np.linalg.norm(ref_refined - pts_ref, axis=1)
-
-    tot_disp = src_disp + ref_disp
-    both_refined = src_mask & ref_mask
-
+    displacement = np.linalg.norm(refined_src - src_points, axis=1)
+    accepted = np.isfinite(scores)
     stats = {
-        "total_points": n_pts,
-        "successfully_refined": int(both_refined.sum()),
-        "unrefinable_points": int(n_pts - both_refined.sum()),
-        "mean_displacement": float(np.mean(tot_disp[both_refined]))
-        if both_refined.any()
-        else 0.0,
-        "max_displacement": float(np.max(tot_disp[both_refined]))
-        if both_refined.any()
-        else 0.0,
+        "method": "paired_gradient_ncc_quadratic_peak",
+        "total_points": int(len(src_points)),
+        "successfully_refined": int(accepted.sum()),
+        "unrefinable_points": int((~accepted).sum()),
+        "mean_displacement": float(displacement[accepted].mean()) if accepted.any() else 0.0,
+        "max_displacement": float(displacement[accepted].max()) if accepted.any() else 0.0,
+        "mean_correlation": float(scores[accepted].mean()) if accepted.any() else None,
     }
-
-    return src_refined, ref_refined, stats
+    return refined_src, ref_points, stats

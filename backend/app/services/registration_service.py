@@ -72,9 +72,16 @@ def _load_gray(path: Path) -> np.ndarray:
     Raises ValueError if the file cannot be read.
     """
     try:
-        img, _ = load_image_auto(path, max_dimension=settings.MAX_IMAGE_DIMENSION)
+        img, metadata = load_image_auto(
+            path, max_dimension=settings.MAX_IMAGE_DIMENSION
+        )
     except ImageLoadError as exc:
         raise ValueError(str(exc)) from exc
+    if metadata["patch_extracted"]:
+        raise ValueError(
+            "Refusing to register an independently centre-cropped raw lunar image. "
+            "Use the metadata-driven CLI geographic crop path for raw .IMG products."
+        )
     return img
 
 
