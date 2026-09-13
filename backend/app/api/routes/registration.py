@@ -2,6 +2,7 @@
 Registration endpoints.
 """
 
+import json
 import uuid
 from datetime import datetime
 
@@ -22,6 +23,36 @@ router = APIRouter()
 
 # In-memory job store (replace with Redis/database in production)
 job_store = {}
+
+
+def _load_demo_job_results(job_id: str) -> RegistrationResults:
+    """Load pre-existing demo results from static files."""
+    if job_id == "showcase_submission":
+        metrics_path = settings.BASE_DIR / "outputs" / "submission" / "metrics.json"
+    elif job_id == "showcase_baseline":
+        metrics_path = settings.RESULTS_DIR / "showcase_baseline_run" / "metrics.json"
+    else:
+        raise HTTPException(status_code=404, detail="Demo job not found")
+
+    if not metrics_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Demo job metrics not found at {metrics_path}"
+        )
+
+    with open(metrics_path) as f:
+        metrics = json.load(f)
+
+    return RegistrationResults(
+        job_id=job_id,
+        status=JobStatus.COMPLETED,
+        metrics=metrics,
+        registered_image_url=f"/api/v1/files/{job_id}/registered.png",
+        overlay_image_url=f"/api/v1/files/{job_id}/overlay.png",
+        checkerboard_image_url=f"/api/v1/files/{job_id}/checkerboard.png",
+        correspondence_csv_url=f"/api/v1/files/{job_id}/correspondence_points.csv",
+        error=None,
+    )
 
 
 @router.post("/register", response_model=RegistrationJobResponse)
@@ -86,6 +117,17 @@ async def create_registration_job(
 @router.get("/jobs/{job_id}", response_model=RegistrationJobStatus)
 async def get_job_status(job_id: str):
     """Get the status of a registration job."""
+    # Handle demo jobs
+    if job_id in ["showcase_submission", "showcase_baseline"]:
+        return RegistrationJobStatus(
+            job_id=job_id,
+            status=JobStatus.COMPLETED,
+            progress=100,
+            message="Demo job completed",
+            created_at="2024-01-01T00:00:00",
+            completed_at="2024-01-01T00:00:00",
+        )
+
     if job_id not in job_store:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -103,6 +145,10 @@ async def get_job_status(job_id: str):
 @router.get("/jobs/{job_id}/results", response_model=RegistrationResults)
 async def get_job_results(job_id: str):
     """Get the results of a completed registration job."""
+    # Handle demo jobs
+    if job_id in ["showcase_submission", "showcase_baseline"]:
+        return _load_demo_job_results(job_id)
+
     if job_id not in job_store:
         raise HTTPException(status_code=404, detail="Job not found")
 

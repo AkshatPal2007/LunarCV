@@ -113,6 +113,18 @@ class LunarCVClient {
   }
 
   /**
+   * Get processing configuration parameters
+   * @returns {Promise<Object>} Processing config
+   */
+  async getProcessingConfig() {
+    const response = await fetch(`${API_BASE_URL}/config/processing`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch processing config: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
    * Health check
    * @returns {Promise<{status: string, version: string}>}
    */

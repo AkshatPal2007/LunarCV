@@ -15,11 +15,8 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "LunarCV API"
     VERSION: str = "0.1.0"
 
-    # CORS
-    BACKEND_CORS_ORIGINS: list[str] = [
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:3000",  # Alternative frontend port
-    ]
+    # CORS - Allow all origins for demo
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 1024 * 1024 * 1024  # 1GB

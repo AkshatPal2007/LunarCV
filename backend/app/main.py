@@ -45,13 +45,21 @@ app.include_router(images.router, prefix=settings.API_V1_STR, tags=["images"])
 app.include_router(
     registration.router, prefix=settings.API_V1_STR, tags=["registration"]
 )
+from app.api.routes import config
+app.include_router(config.router, prefix=settings.API_V1_STR, tags=["config"])
 
 
 # Serve result files
 @app.get(f"{settings.API_V1_STR}/files/{{job_id}}/{{filename}}")
 async def get_result_file(job_id: str, filename: str):
     """Serve result files (images, CSV, etc.)."""
-    file_path = settings.RESULTS_DIR / job_id / filename
+    # Check demo job locations first
+    if job_id == "showcase_submission":
+        file_path = settings.BASE_DIR / "outputs" / "submission" / filename
+    elif job_id == "showcase_baseline":
+        file_path = settings.RESULTS_DIR / "showcase_baseline_run" / filename
+    else:
+        file_path = settings.RESULTS_DIR / job_id / filename
 
     if not file_path.exists():
         from fastapi import HTTPException

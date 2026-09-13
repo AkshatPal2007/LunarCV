@@ -466,7 +466,7 @@ def main():
                     RIFT2Matcher(),
                 ]
             )
-            print("  Matcher: LightGlue + RIFT2 Ensemble (RTX 4070 High-Res)")
+            print("  Matcher: LightGlue + RIFT2 Ensemble")
         except Exception:
             from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 

@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import apiClient from './api/client.js';
 
 export default function App() {
   // Navigation: 'educate' is placed FIRST before 'console'
   const [activeTab, setActiveTab] = useState('educate');
+
+  // Demo job state for backend integration
+  const [demoJobId] = useState('showcase_submission');
+  const [demoResults, setDemoResults] = useState(null);
+  const [realMetrics, setRealMetrics] = useState(null);
+  const [isLoadingDemo, setIsLoadingDemo] = useState(true);
+  const [processingConfig, setProcessingConfig] = useState(null);
 
   // Controls state
   const [claheOn, setClaheOn] = useState(true);
@@ -366,6 +374,47 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isPlaying]);
 
+  // Fetch demo data from backend on mount
+  useEffect(() => {
+    const fetchDemoData = async () => {
+      try {
+        setIsLoadingDemo(true);
+        const results = await apiClient.getJobResults(demoJobId);
+        setDemoResults(results);
+
+        // Transform backend metrics to frontend format
+        const metrics = results.metrics.evaluation_metrics || results.metrics;
+        setRealMetrics({
+          rmseVal: (metrics.fit_reprojection_rmse_px || metrics.rmse_forward_px || 2.0).toFixed(2),
+          rmsePct: Math.round(100 - ((metrics.fit_reprojection_rmse_px || metrics.rmse_forward_px || 2.0) * 28)),
+          inlierCount: metrics.inlier_count || metrics.inlier_matches || 0,
+          inlierPct: Math.round((metrics.inlier_ratio || 0) * 100),
+          coveragePct: Math.round(metrics.mutual_overlap_pct || metrics.overlap_pct || 0),
+          gridPct: Math.round(metrics.grid_occupancy_pct || 50)
+        });
+      } catch (error) {
+        console.error('Failed to fetch demo data:', error);
+        // Silently fall back to simulated metrics
+      } finally {
+        setIsLoadingDemo(false);
+      }
+    };
+    fetchDemoData();
+  }, [demoJobId]);
+
+  // Fetch processing config from backend
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const config = await apiClient.getProcessingConfig();
+        setProcessingConfig(config);
+      } catch (error) {
+        console.error('Failed to fetch processing config:', error);
+      }
+    };
+    fetchConfig();
+  }, []);
+
   // Dynamically coupled computer vision metrics derived directly from slider physics and active tile
   const targetMetrics = useMemo(() => {
     // 1. RMSE (Root Mean Square Error in pixels)
@@ -422,6 +471,11 @@ export default function App() {
 
   // Live synchronous metrics directly reflecting slider physics with instant response
   const currentMetrics = useMemo(() => {
+    // Use real metrics from backend if loaded
+    if (realMetrics && !isLoadingDemo) {
+      return realMetrics;
+    }
+    // Fallback to physics simulation
     const p = gaugeProgress;
     return {
       rmsePct: Math.round(targetMetrics.rmsePct * p),
@@ -431,7 +485,7 @@ export default function App() {
       coveragePct: Math.round(targetMetrics.coverage * p),
       gridPct: Math.round(targetMetrics.grid * p),
     };
-  }, [gaugeProgress, targetMetrics]);
+  }, [gaugeProgress, targetMetrics, realMetrics, isLoadingDemo]);
 
   // Dynamic Constellation Nodes & Vectors based on tile size, threshold, and filters
   const { constellationNodes, constellationLines } = useMemo(() => {
@@ -2166,234 +2220,164 @@ export default function App() {
               </div>
 
               <div className="panel controls">
-                <h3>preprocessing</h3>
+                <h3>Backend Processing Parameters</h3>
 
-                <div className="ctrl">
-                  <div className="ctrl-row">
-                    <span className="ctrl-name">CLAHE preprocessing</span>
-                    <div
-                      className={`switch ${claheOn ? 'on' : ''}`}
-                      onClick={() => setClaheOn(!claheOn)}
-                    >
-                      <div className="knob"></div>
+                {processingConfig ? (
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: 'rgba(251, 191, 36, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(251, 191, 36, 0.15)'
+                    }}>
+                      <div style={{ color: 'var(--amber)', fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.04em' }}>
+                        MAGSAC++ OUTLIER REJECTION
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Reproj Threshold: </span>
+                          <strong style={{ color: '#fbbf24' }}>{processingConfig.magsac.reproj_threshold} px</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Model: </span>
+                          <strong style={{ color: '#c084fc' }}>{processingConfig.magsac.model}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Max Iterations: </span>
+                          <strong style={{ color: '#34d399' }}>{processingConfig.magsac.max_iters}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Confidence: </span>
+                          <strong style={{ color: '#38bdf8' }}>{processingConfig.magsac.confidence}</strong>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="ctrl">
-                  <div className="ctrl-row">
-                    <span className="ctrl-name">MAGSAC++ threshold</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '9px', fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: '4px', background: magsacThreshold < 1.8 ? 'rgba(52,211,153,0.15)' : magsacThreshold < 3.4 ? 'rgba(251,191,36,0.15)' : 'rgba(239,68,68,0.15)', color: magsacThreshold < 1.8 ? '#34d399' : magsacThreshold < 3.4 ? '#fbbf24' : '#f87171', border: '1px solid currentColor' }}>
-                        {magsacThreshold < 1.8 ? 'ULTRA-TIGHT' : magsacThreshold < 3.4 ? 'BALANCED' : 'HIGH-RECALL'}
-                      </span>
-                      <span className="ctrl-name" style={{ color: 'var(--amber)', fontWeight: 700, fontFamily: 'var(--mono)' }}>
-                        {magsacThreshold.toFixed(1)} px
-                      </span>
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: 'rgba(192, 132, 252, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(192, 132, 252, 0.15)'
+                    }}>
+                      <div style={{ color: '#c084fc', fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.04em' }}>
+                        SPATIAL UNIFORMITY
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Grid Size: </span>
+                          <strong style={{ color: '#c084fc' }}>{processingConfig.spatial_uniformity.grid_rows}×{processingConfig.spatial_uniformity.grid_cols}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Top-K per Cell: </span>
+                          <strong style={{ color: '#fbbf24' }}>{processingConfig.spatial_uniformity.top_k_per_cell}</strong>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="range-wrap">
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="5.0"
-                      step="0.1"
-                      value={magsacThreshold}
-                      onChange={(e) => setMagsacThreshold(Number(e.target.value))}
-                      style={{
-                        '--val-pct': `${((magsacThreshold - 0.5) / (5.0 - 0.5)) * 100}%`,
-                      }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--mono)', color: 'var(--ink-faint)', marginTop: '3px' }}>
-                      <span>0.5 px (Tight)</span>
-                      <span>5.0 px (Loose)</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="ctrl">
-                  <div className="ctrl-row">
-                    <span className="ctrl-name">Tile size</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '9px', fontFamily: 'var(--mono)', padding: '1px 5px', borderRadius: '4px', background: 'rgba(192, 132, 252, 0.15)', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.35)' }}>
-                        {Math.pow(Math.round(512 / tileSize), 2)} TILES
-                      </span>
-                      <span className="ctrl-name" style={{ color: 'var(--amber)', fontWeight: 700, fontFamily: 'var(--mono)' }}>
-                        {tileSize} px
-                      </span>
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: 'rgba(34, 197, 94, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(34, 197, 94, 0.15)'
+                    }}>
+                      <div style={{ color: '#34d399', fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.04em' }}>
+                        SUB-PIXEL REFINEMENT
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Enabled: </span>
+                          <strong style={{ color: processingConfig.subpixel.enabled ? '#34d399' : '#94a3b8' }}>
+                            {processingConfig.subpixel.enabled ? 'Yes' : 'No'}
+                          </strong>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Method: </span>
+                          <strong style={{ color: '#38bdf8' }}>{processingConfig.subpixel.method}</strong>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="range-wrap">
-                    <input
-                      type="range"
-                      min="64"
-                      max="512"
-                      step="32"
-                      value={tileSize}
-                      onChange={(e) => setTileSize(Number(e.target.value))}
-                      style={{
-                        '--val-pct': `${((tileSize - 64) / (512 - 64)) * 100}%`,
-                      }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontFamily: 'var(--mono)', color: 'var(--ink-faint)', marginTop: '3px' }}>
-                      <span>64 px (64 tiles)</span>
-                      <span>512 px (1 tile)</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="ctrl">
-                  <div className="ctrl-row">
-                    <span className="ctrl-name">Sub-pixel refinement</span>
-                    <div
-                      className={`switch ${subpixelOn ? 'on' : ''}`}
-                      onClick={() => setSubpixelOn(!subpixelOn)}
-                    >
-                      <div className="knob"></div>
+                    <div style={{
+                      marginBottom: '20px',
+                      padding: '12px',
+                      background: 'rgba(56, 189, 248, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(56, 189, 248, 0.15)'
+                    }}>
+                      <div style={{ color: '#38bdf8', fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.04em' }}>
+                        LIGHTGLUE MATCHER
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Max Dimension: </span>
+                          <strong style={{ color: '#fbbf24' }}>{processingConfig.lightglue.max_dim} px</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Max Keypoints: </span>
+                          <strong style={{ color: '#c084fc' }}>{processingConfig.lightglue.max_keypoints}</strong>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="ctrl">
-                  <div className="ctrl-row">
-                    <span className="ctrl-name">Spatial uniformity filter</span>
-                    <div
-                      className={`switch ${uniformityOn ? 'on' : ''}`}
-                      onClick={() => setUniformityOn(!uniformityOn)}
-                    >
-                      <div className="knob"></div>
+                    <div style={{
+                      padding: '12px',
+                      background: 'rgba(138, 107, 255, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(138, 107, 255, 0.15)'
+                    }}>
+                      <div style={{ color: 'var(--violet)', fontSize: '11px', fontWeight: 700, marginBottom: '10px', letterSpacing: '0.04em' }}>
+                        NORMALIZATION
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <span style={{ color: 'var(--ink-dim)' }}>Percentile Range: </span>
+                          <strong style={{ color: '#34d399' }}>
+                            {processingConfig.normalization.percentile_low}% - {processingConfig.normalization.percentile_high}%
+                          </strong>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Real-Time Homography & Solver Diagnostics */}
-                <div
-                  style={{
-                    marginTop: '14px',
-                    padding: '10px 12px',
-                    background: 'rgba(5, 3, 15, 0.65)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    fontFamily: 'var(--mono)',
-                    fontSize: '11px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '5px' }}>
-                    <span style={{ color: 'var(--amber)', fontWeight: 700, letterSpacing: '0.04em', fontSize: '10px' }}>
-                      MATHEMATICAL SOLVER STATE
-                    </span>
-                    <span style={{ color: '#34d399', fontSize: '9px', fontWeight: 600 }}>
-                      CONVERGED (3×3)
-                    </span>
+                ) : (
+                  <div style={{ color: 'var(--ink-dim)', fontSize: '12px', fontFamily: 'var(--mono)' }}>
+                    Loading backend configuration...
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '9.5px' }}>
-                    <div>
-                      <span style={{ color: 'var(--ink-dim)', display: 'block' }}>Epipolar Tolerance:</span>
-                      <strong style={{ color: '#fbbf24' }}>±{(magsacThreshold * 0.14).toFixed(2)} px</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--ink-dim)', display: 'block' }}>Quad Grid Division:</span>
-                      <strong style={{ color: '#c084fc' }}>{Math.round(512 / tileSize)}×{Math.round(512 / tileSize)} quads</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--ink-dim)', display: 'block' }}>Sub-Pixel Est:</span>
-                      <strong style={{ color: subpixelOn ? '#34d399' : '#94a3b8' }}>{subpixelOn ? 'Taylor 2D (0.2px)' : 'Quantized (1px)'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--ink-dim)', display: 'block' }}>ANMS Spatial Dist:</span>
-                      <strong style={{ color: uniformityOn ? '#38bdf8' : '#94a3b8' }}>{uniformityOn ? 'Uniform Spread' : 'Clustered Rims'}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Presets for Instant Factor Alignment */}
-                <div style={{ marginTop: '12px' }}>
-                  <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--ink-dim)', marginBottom: '6px' }}>
-                    REGISTRATION PRESETS:
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                    <button
-                      onClick={() => {
-                        setMagsacThreshold(3.6);
-                        setTileSize(512);
-                        setSubpixelOn(false);
-                        setUniformityOn(false);
-                      }}
-                      title="Fast draft scan: 512px single tile, integer pixels"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '6px 4px',
-                        color: '#cbd5e1',
-                        fontSize: '9.5px',
-                        fontFamily: 'var(--mono)',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--amber)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
-                    >
-                      ⚡ Fast
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMagsacThreshold(2.4);
-                        setTileSize(256);
-                        setSubpixelOn(true);
-                        setUniformityOn(true);
-                        setClaheOn(true);
-                      }}
-                      title="Chandrayaan-2 Recommended: 256px quads, sub-pixel on, uniformity on"
-                      style={{
-                        background: 'rgba(251, 191, 36, 0.12)',
-                        border: '1px solid #fbbf24',
-                        borderRadius: '6px',
-                        padding: '6px 4px',
-                        color: '#fbbf24',
-                        fontSize: '9.5px',
-                        fontFamily: 'var(--mono)',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        boxShadow: '0 0 8px rgba(251,191,36,0.25)',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      🎯 Balanced
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMagsacThreshold(1.2);
-                        setTileSize(128);
-                        setSubpixelOn(true);
-                        setUniformityOn(true);
-                        setClaheOn(true);
-                      }}
-                      title="Ultra-precision: 128px dense quads, 1.2px threshold, sub-0.2px RMSE"
-                      style={{
-                        background: 'rgba(192, 132, 252, 0.1)',
-                        border: '1px solid #c084fc',
-                        borderRadius: '6px',
-                        padding: '6px 4px',
-                        color: '#c084fc',
-                        fontSize: '9.5px',
-                        fontFamily: 'var(--mono)',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#ffffff')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#c084fc')}
-                    >
-                      🔬 Ultra
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
+
+            {isLoadingDemo && (
+              <div style={{
+                padding: '16px',
+                background: 'rgba(138, 107, 255, 0.1)',
+                borderRadius: '12px',
+                textAlign: 'center',
+                color: 'var(--violet)',
+                marginBottom: '20px',
+                fontSize: '13px',
+                fontFamily: 'var(--mono)'
+              }}>
+                Loading real data from backend...
+              </div>
+            )}
+
+            {realMetrics && !isLoadingDemo && (
+              <div style={{
+                padding: '12px',
+                background: 'rgba(34, 197, 94, 0.1)',
+                borderRadius: '12px',
+                textAlign: 'center',
+                color: '#22c55e',
+                fontSize: '11px',
+                fontFamily: 'var(--mono)',
+                marginBottom: '20px'
+              }}>
+                ✓ REAL DATA LOADED FROM JOB: {demoJobId}
+              </div>
+            )}
 
             <div className="metrics">
               <div className="metric">
@@ -2472,6 +2456,114 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            {demoResults && !isLoadingDemo && (
+              <div style={{
+                marginTop: '24px',
+                padding: '20px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '12px',
+                border: '1px solid rgba(138, 107, 255, 0.2)'
+              }}>
+                <h3 style={{
+                  color: 'var(--violet)',
+                  fontSize: '14px',
+                  fontFamily: 'var(--mono)',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px'
+                }}>
+                  Registration Results
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '16px'
+                }}>
+                  <div>
+                    <div style={{
+                      fontSize: '11px',
+                      color: 'var(--amber)',
+                      fontFamily: 'var(--mono)',
+                      marginBottom: '8px',
+                      textTransform: 'uppercase'
+                    }}>
+                      Overlay
+                    </div>
+                    <img
+                      src={`http://localhost:8000${demoResults.overlay_image_url}`}
+                      alt="Overlay"
+                      style={{
+                        width: '100%',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(251, 191, 36, 0.3)'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none', color: '#ef4444', fontSize: '11px', marginTop: '8px' }}>
+                      Failed to load image
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{
+                      fontSize: '11px',
+                      color: 'var(--emerald)',
+                      fontFamily: 'var(--mono)',
+                      marginBottom: '8px',
+                      textTransform: 'uppercase'
+                    }}>
+                      Registered
+                    </div>
+                    <img
+                      src={`http://localhost:8000${demoResults.registered_image_url}`}
+                      alt="Registered"
+                      style={{
+                        width: '100%',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(34, 197, 94, 0.3)'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none', color: '#ef4444', fontSize: '11px', marginTop: '8px' }}>
+                      Failed to load image
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{
+                      fontSize: '11px',
+                      color: 'var(--magenta)',
+                      fontFamily: 'var(--mono)',
+                      marginBottom: '8px',
+                      textTransform: 'uppercase'
+                    }}>
+                      Checkerboard
+                    </div>
+                    <img
+                      src={`http://localhost:8000${demoResults.checkerboard_image_url}`}
+                      alt="Checkerboard"
+                      style={{
+                        width: '100%',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(236, 72, 153, 0.3)'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
+                    <div style={{ display: 'none', color: '#ef4444', fontSize: '11px', marginTop: '8px' }}>
+                      Failed to load image
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="panel roadmap">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
