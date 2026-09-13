@@ -410,6 +410,10 @@ def main():
     ohrc_raw = extract_patch(ohrc_mm, ohrc_rows, ohrc_cols)
     lro_raw = extract_patch(lro_mm, lro_rows, lro_cols)
 
+    # Save Stage 2 raw patch extracts to figures directory
+    cv2.imwrite(str(fig_dir / "stage2_ohrc_raw.png"), ohrc_raw)
+    cv2.imwrite(str(fig_dir / "stage2_lro_raw.png"), lro_raw)
+
     # ------------------------------------------------------------------
     # 3. Minimal Normalization & Physical GSD Scale Matching
     # ------------------------------------------------------------------
@@ -434,6 +438,19 @@ def main():
     print(f"  OHRC patch original: {ohrc_norm.shape} @ {OHRC_GSD}m/px")
     print(f"  OHRC scaled canvas:  {ohrc_scaled.shape} (circular crater geometry preserved)")
     print(f"  LRO NAC reference:   {lro_norm.shape} @ {LRO_GSD}m/px")
+
+    # Save Stage 3 normalized, scaled, and side-by-side comparison images
+    cv2.imwrite(str(fig_dir / "stage3_ohrc_norm.png"), ohrc_norm)
+    cv2.imwrite(str(fig_dir / "stage3_lro_norm.png"), lro_norm)
+    cv2.imwrite(str(fig_dir / "stage3_ohrc_scaled.png"), ohrc_scaled)
+
+    pair_canvas = np.zeros(
+        (max(ohrc_scaled.shape[0], lro_norm.shape[0]), ohrc_scaled.shape[1] + lro_norm.shape[1]),
+        dtype=np.uint8,
+    )
+    pair_canvas[: ohrc_scaled.shape[0], : ohrc_scaled.shape[1]] = ohrc_scaled
+    pair_canvas[: lro_norm.shape[0], ohrc_scaled.shape[1] :] = lro_norm
+    cv2.imwrite(str(fig_dir / "stage3_pair_preprocessed.png"), pair_canvas)
 
     # ------------------------------------------------------------------
     # 4. Dense Chunked Feature Matching (LightGlue + RIFT2)
@@ -549,6 +566,16 @@ def main():
     src_scaled_all = (src_orig_all / scale_xy).astype(np.float32)
     ref_all = ref_all.astype(np.float32)
 
+    # Save Stage 4 raw matches visualization to figures directory
+    draw_matches(
+        ohrc_scaled,
+        lro_norm,
+        src_scaled_all,
+        ref_all,
+        fig_dir / "stage4_raw_matches.png",
+        title=f"Stage 4: Raw Feature Correspondences ({len(src_scaled_all)} matches)",
+    )
+
     # Save initial matches
     matches = MatchSet(
         source_name="ohrc",
@@ -606,6 +633,16 @@ def main():
     pts_src_clean = src_scaled_all[inliers]
     pts_ref_clean = ref_all[inliers]
     pts_src_orig_clean = src_orig_all[inliers]
+
+    # Save Stage 5 geometric inlier matches visualization to figures directory
+    draw_matches(
+        ohrc_scaled,
+        lro_norm,
+        pts_src_clean,
+        pts_ref_clean,
+        fig_dir / "stage5_inlier_matches.png",
+        title=f"Stage 5: Verified Geometric Inliers ({len(pts_src_clean)} / {len(src_scaled_all)})",
+    )
 
     # Update matches with outlier rejection results
     matches.inlier_mask = inliers
@@ -747,6 +784,9 @@ def main():
         )
         mask_warped = warped_ohrc > 0
 
+    # Save Stage 6 warped registered full-canvas image to figures directory
+    cv2.imwrite(str(fig_dir / "stage6_registered_full_canvas.png"), warped_ohrc)
+
     if final_mask is None:
         raise RuntimeError("Final transform did not return an inlier mask.")
     final_inliers = final_mask.ravel().astype(bool)
@@ -838,10 +878,14 @@ def main():
 
         # 1. Registered image (cleanly framed on mutual lunar surface)
         cv2.imwrite(str(out_dir / "registered.png"), registered_display)
+        cv2.imwrite(str(fig_dir / "registered.png"), registered_display)
+        cv2.imwrite(str(fig_dir / "stage7_registered.png"), registered_display)
 
         # 2. 50/50 Alpha Blend Overlay (100% mutual overlap, zero black border)
         overlay = cv2.cvtColor(registered_display, cv2.COLOR_GRAY2BGR) // 2 + cv2.cvtColor(lro_display, cv2.COLOR_GRAY2BGR) // 2
         cv2.imwrite(str(out_dir / "overlay.png"), overlay)
+        cv2.imwrite(str(fig_dir / "overlay.png"), overlay)
+        cv2.imwrite(str(fig_dir / "stage7_overlay.png"), overlay)
 
         # 3. Seamless Checkerboard (100% active surface tiles)
         checker = np.copy(registered_display)
@@ -854,10 +898,16 @@ def main():
                     x2 = min(x + g_sz, ch_w)
                     checker[y:y2, x:x2] = lro_display[y:y2, x:x2]
         cv2.imwrite(str(out_dir / "checkerboard.png"), checker)
+        cv2.imwrite(str(fig_dir / "checkerboard.png"), checker)
+        cv2.imwrite(str(fig_dir / "stage7_checkerboard.png"), checker)
     else:
         cv2.imwrite(str(out_dir / "registered.png"), warped_ohrc)
+        cv2.imwrite(str(fig_dir / "registered.png"), warped_ohrc)
+        cv2.imwrite(str(fig_dir / "stage7_registered.png"), warped_ohrc)
         overlay, _ = make_overlay(warped_ohrc, lro_norm, mask_warped, lro_norm > 0)
         cv2.imwrite(str(out_dir / "overlay.png"), overlay)
+        cv2.imwrite(str(fig_dir / "overlay.png"), overlay)
+        cv2.imwrite(str(fig_dir / "stage7_overlay.png"), overlay)
         checker = make_checkerboard(
             warped_ohrc,
             lro_norm,
@@ -867,6 +917,8 @@ def main():
             grid_size=args.grid_size,
         )
         cv2.imwrite(str(out_dir / "checkerboard.png"), checker)
+        cv2.imwrite(str(fig_dir / "checkerboard.png"), checker)
+        cv2.imwrite(str(fig_dir / "stage7_checkerboard.png"), checker)
 
     # 4. Professional 4-Panel Suite
     suite_png_path = out_dir / "professional_suite.png"
@@ -880,6 +932,8 @@ def main():
     )
     # Also save to figures directory
     shutil.copyfile(suite_png_path, fig_dir / "professional_registration_suite.png")
+    shutil.copyfile(suite_png_path, fig_dir / "professional_suite.png")
+    shutil.copyfile(suite_png_path, fig_dir / "stage7_professional_suite.png")
 
     # 5. Side-by-side matches
     draw_matches(
@@ -890,6 +944,7 @@ def main():
         fig_dir / "matches.png",
         title=f"Sub-Pixel Matches ({len(pts_src_subpix)} inliers, RMSE={rmse:.2f}px)",
     )
+    shutil.copyfile(fig_dir / "matches.png", fig_dir / "stage7_matches.png")
 
     # 6. Comprehensive Diagnostic Figure
     fig, axes = plt.subplots(2, 3, figsize=(20, 14))
@@ -956,6 +1011,7 @@ def main():
     fig.tight_layout()
     diag_path = fig_dir / "registration_product_diagnostic.png"
     fig.savefig(diag_path, dpi=150, bbox_inches="tight", facecolor=fig.get_facecolor())
+    shutil.copyfile(diag_path, fig_dir / "stage7_diagnostic.png")
     plt.close(fig)
 
     # 7. Correspondence Points CSV
