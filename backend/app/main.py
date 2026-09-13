@@ -58,6 +58,8 @@ async def get_result_file(job_id: str, filename: str):
         file_path = settings.BASE_DIR / "outputs" / "submission" / filename
     elif job_id == "showcase_baseline":
         file_path = settings.RESULTS_DIR / "showcase_baseline_run" / filename
+    elif job_id == "figures":
+        file_path = settings.BASE_DIR / "outputs" / "figures" / filename
     else:
         file_path = settings.RESULTS_DIR / job_id / filename
 

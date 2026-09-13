@@ -2,11 +2,42 @@
 Configuration endpoints for the frontend to fetch processing parameters.
 """
 
-from fastapi import APIRouter
+import csv
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException
 
 from lunarcv import processing_config
+from app.config import settings
 
 router = APIRouter()
+
+
+@router.get("/config/correspondence-points")
+async def get_correspondence_points():
+    """
+    Get correspondence points from the showcase submission.
+    Returns CSV data as JSON.
+    """
+    csv_path = settings.BASE_DIR / "outputs" / "submission" / "correspondence_points.csv"
+
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="Correspondence points file not found")
+
+    points = []
+    with open(csv_path, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            points.append({
+                'point_id': int(row['point_id']),
+                'ohrc_patch_x': float(row['ohrc_patch_x']),
+                'ohrc_patch_y': float(row['ohrc_patch_y']),
+                'lro_crop_x': float(row['lro_crop_x']),
+                'lro_crop_y': float(row['lro_crop_y']),
+                'fit_residual_px': float(row['fit_residual_px'])
+            })
+
+    return {"points": points}
 
 
 @router.get("/config/processing")

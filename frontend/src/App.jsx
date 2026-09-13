@@ -11,6 +11,8 @@ export default function App() {
   const [realMetrics, setRealMetrics] = useState(null);
   const [isLoadingDemo, setIsLoadingDemo] = useState(true);
   const [processingConfig, setProcessingConfig] = useState(null);
+  const [correspondencePoints, setCorrespondencePoints] = useState(null);
+  const [imageDimensions, setImageDimensions] = useState({ ohrc: null, lro: null });
 
   // Controls state
   const [claheOn, setClaheOn] = useState(true);
@@ -33,45 +35,69 @@ export default function App() {
   const [scanPosYellow, setScanPosYellow] = useState(0);
 
   // Dense green feature keypoints extracted on Image 1 (TMC-2)
-  const greenFeaturePoints = useMemo(() => [
-    { id: 'gp1', x: 65, y: 48, r: 4.5 },
-    { id: 'gp2', x: 115, y: 38, r: 3.5 },
-    { id: 'gp3', x: 175, y: 48, r: 4.0 },
-    { id: 'gp4', x: 235, y: 36, r: 3.5 },
-    { id: 'gp5', x: 295, y: 44, r: 4.2 },
-    { id: 'gp6', x: 350, y: 38, r: 4.8 },
-    { id: 'gp7', x: 415, y: 52, r: 3.5 },
-    { id: 'gp8', x: 55, y: 92, r: 4.0 },
-    { id: 'gp9', x: 110, y: 82, r: 4.5 },
-    { id: 'gp10', x: 145, y: 112, r: 3.8 },
-    { id: 'gp11', x: 195, y: 88, r: 4.2 },
-    { id: 'gp12', x: 250, y: 98, r: 4.6 },
-    { id: 'gp13', x: 305, y: 82, r: 3.6 },
-    { id: 'gp14', x: 375, y: 94, r: 4.5 },
-    { id: 'gp15', x: 440, y: 112, r: 3.8 },
-    { id: 'gp16', x: 48, y: 152, r: 4.2 },
-    { id: 'gp17', x: 95, y: 138, r: 3.6 },
-    { id: 'gp18', x: 155, y: 148, r: 5.0 },
-    { id: 'gp19', x: 215, y: 136, r: 4.0 },
-    { id: 'gp20', x: 275, y: 158, r: 3.8 },
-    { id: 'gp21', x: 330, y: 144, r: 4.2 },
-    { id: 'gp22', x: 395, y: 162, r: 4.5 },
-    { id: 'gp23', x: 450, y: 178, r: 3.6 },
-    { id: 'gp24', x: 68, y: 208, r: 4.5 },
-    { id: 'gp25', x: 125, y: 192, r: 4.0 },
-    { id: 'gp26', x: 185, y: 218, r: 3.8 },
-    { id: 'gp27', x: 245, y: 202, r: 5.0 },
-    { id: 'gp28', x: 305, y: 222, r: 4.2 },
-    { id: 'gp29', x: 365, y: 208, r: 4.6 },
-    { id: 'gp30', x: 425, y: 228, r: 3.6 },
-    { id: 'gp31', x: 82, y: 268, r: 4.2 },
-    { id: 'gp32', x: 138, y: 252, r: 3.8 },
-    { id: 'gp33', x: 198, y: 278, r: 4.5 },
-    { id: 'gp34', x: 258, y: 262, r: 4.0 },
-    { id: 'gp35', x: 318, y: 288, r: 3.6 },
-    { id: 'gp36', x: 378, y: 272, r: 4.6 },
-    { id: 'gp37', x: 438, y: 292, r: 4.0 },
-  ], []);
+  // Using real correspondence points from backend if available
+  const greenFeaturePoints = useMemo(() => {
+    if (!correspondencePoints || correspondencePoints.length === 0) {
+      // Fallback to placeholder points if no data yet
+      return [
+        { id: 'gp1', x: 65, y: 48, r: 4.5 },
+        { id: 'gp2', x: 115, y: 38, r: 3.5 },
+        { id: 'gp3', x: 175, y: 48, r: 4.0 },
+        { id: 'gp4', x: 235, y: 36, r: 3.5 },
+        { id: 'gp5', x: 295, y: 44, r: 4.2 },
+        { id: 'gp6', x: 350, y: 38, r: 4.8 },
+        { id: 'gp7', x: 415, y: 52, r: 3.5 },
+        { id: 'gp8', x: 55, y: 92, r: 4.0 },
+        { id: 'gp9', x: 110, y: 82, r: 4.5 },
+        { id: 'gp10', x: 145, y: 112, r: 3.8 },
+        { id: 'gp11', x: 195, y: 88, r: 4.2 },
+        { id: 'gp12', x: 250, y: 98, r: 4.6 },
+      ];
+    }
+
+    // Sort by distance from center, take all points (no limit)
+    const xCoords = correspondencePoints.map(p => p.ohrc_patch_x);
+    const yCoords = correspondencePoints.map(p => p.ohrc_patch_y);
+    const minX = Math.min(...xCoords);
+    const maxX = Math.max(...xCoords);
+    const minY = Math.min(...yCoords);
+    const maxY = Math.max(...yCoords);
+
+    // Expand viewport to show more of the image (2x larger than correspondence point range)
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const rangeX = maxX - minX;
+    const rangeY = maxY - minY;
+    const viewportRangeX = rangeX * 2;
+    const viewportRangeY = rangeY * 2;
+    const viewportMinX = centerX - viewportRangeX / 2;
+    const viewportMaxX = centerX + viewportRangeX / 2;
+    const viewportMinY = centerY - viewportRangeY / 2;
+    const viewportMaxY = centerY + viewportRangeY / 2;
+
+    // Sort by distance from center
+    const pointsWithDistance = correspondencePoints.map(point => {
+      const normDx = (point.ohrc_patch_x - centerX) / rangeX;
+      const normDy = (point.ohrc_patch_y - centerY) / rangeY;
+      const distFromCenter = Math.sqrt(normDx * normDx + normDy * normDy);
+      return { ...point, distFromCenter };
+    });
+
+    // Take all points, sorted by distance from center
+    const selectedPoints = pointsWithDistance.sort((a, b) => a.distFromCenter - b.distFromCenter);
+
+    // Convert to viewBox coordinates using expanded viewport
+    return selectedPoints.map((point, i) => {
+      const viewBoxX = ((point.ohrc_patch_x - viewportMinX) / viewportRangeX) * 500;
+      const viewBoxY = ((point.ohrc_patch_y - viewportMinY) / viewportRangeY) * 340;
+      return {
+        id: `real_${point.point_id}`,
+        x: viewBoxX,
+        y: viewBoxY,
+        r: 4.0 + (1 - Math.min(point.fit_residual_px / 2, 1)) * 1.5
+      };
+    });
+  }, [correspondencePoints]);
 
   // Continuous line shoot progression: 0.0 to 1.0
   const [shootProgress, setShootProgress] = useState(0);
@@ -402,6 +428,19 @@ export default function App() {
     fetchDemoData();
   }, [demoJobId]);
 
+  // Fetch correspondence points from backend
+  useEffect(() => {
+    const fetchCorrespondence = async () => {
+      try {
+        const data = await apiClient.getCorrespondencePoints();
+        setCorrespondencePoints(data.points);
+      } catch (error) {
+        console.error('Failed to fetch correspondence points:', error);
+      }
+    };
+    fetchCorrespondence();
+  }, []);
+
   // Fetch processing config from backend
   useEffect(() => {
     const fetchConfig = async () => {
@@ -487,110 +526,118 @@ export default function App() {
     };
   }, [gaugeProgress, targetMetrics, realMetrics, isLoadingDemo]);
 
-  // Dynamic Constellation Nodes & Vectors based on tile size, threshold, and filters
+  // Dynamic Constellation Nodes & Vectors based on real correspondence points
   const { constellationNodes, constellationLines } = useMemo(() => {
-    // Base core keypoints
-    const baseNodes = [
-      { id: 't1', x: 125, y: 95, label: 'Tycho North', isSource: true },
-      { id: 't2', x: 350, y: 35, label: 'Top Basin', isSource: true },
-      { id: 't3', x: 180, y: 140, label: 'Central Peak', isSource: true },
-      { id: 't4', x: 250, y: 185, label: 'South Ejecta', isSource: true },
-      { id: 't5', x: 90, y: 290, label: 'Deep Crater', isSource: true },
-      { id: 'l1', x: 510, y: 70, label: 'Boundary Inlier', isSource: false },
-      { id: 'l2', x: 720, y: 65, label: 'North Terrace', isSource: false },
-      { id: 'l3', x: 950, y: 195, label: 'East Wall', isSource: false },
-      { id: 'l4', x: 890, y: 300, label: 'Secondary Rim', isSource: false },
-    ];
+    if (!correspondencePoints || correspondencePoints.length === 0) {
+      // Fallback to placeholder nodes if no data yet
+      const baseNodes = [
+        { id: 't1', x: 125, y: 95, label: 'Source A', isSource: true },
+        { id: 't2', x: 350, y: 35, label: 'Source B', isSource: true },
+        { id: 't3', x: 180, y: 140, label: 'Source C', isSource: true },
+        { id: 't4', x: 250, y: 185, label: 'Source D', isSource: true },
+        { id: 'l1', x: 610, y: 70, label: 'Target A', isSource: false },
+        { id: 'l2', x: 820, y: 65, label: 'Target B', isSource: false },
+        { id: 'l3', x: 680, y: 195, label: 'Target C', isSource: false },
+        { id: 'l4', x: 750, y: 300, label: 'Target D', isSource: false },
+      ];
 
-    // Additional quad-tree nodes unlocked when tile size is <= 256px
-    if (tileSize <= 256) {
-      baseNodes.push(
-        { id: 't6', x: 290, y: 120, label: 'Basin Floor', isSource: true },
-        { id: 't7', x: 60, y: 180, label: 'West Escarpment', isSource: true },
-        { id: 'l5', x: 610, y: 160, label: 'Central Terrace', isSource: false },
-        { id: 'l6', x: 790, y: 220, label: 'Ridge Peak', isSource: false },
-      );
+      const lines = [
+        { from: 't1', to: 'l1', order: 0 },
+        { from: 't2', to: 'l2', order: 1 },
+        { from: 't3', to: 'l3', order: 2 },
+        { from: 't4', to: 'l4', order: 3 },
+      ];
+
+      return { constellationNodes: baseNodes, constellationLines: lines };
     }
 
-    // Dense sub-tile nodes when tile size is <= 160px
-    if (tileSize <= 160) {
-      baseNodes.push(
-        { id: 't9', x: 380, y: 150, label: 'Quad Ejecta C', isSource: true },
-        { id: 't10', x: 160, y: 240, label: 'Quad Floor D', isSource: true },
-        { id: 'l8', x: 840, y: 110, label: 'Terrace Step B', isSource: false },
-        { id: 'l9', x: 580, y: 260, label: 'Inner Plain B', isSource: false },
-      );
-    }
+    // Use the same expanded viewport approach as greenFeaturePoints
+    const ohrcXCoords = correspondencePoints.map(p => p.ohrc_patch_x);
+    const ohrcYCoords = correspondencePoints.map(p => p.ohrc_patch_y);
+    const lroXCoords = correspondencePoints.map(p => p.lro_crop_x);
+    const lroYCoords = correspondencePoints.map(p => p.lro_crop_y);
 
-    // CLAHE contrast nodes unlocked in dark shadowed craters
-    if (claheOn) {
-      baseNodes.push(
-        { id: 'tc1', x: 310, y: 285, label: 'Shadow Basin A', isSource: true },
-        { id: 'lc1', x: 740, y: 310, label: 'Shadow Terrace A', isSource: false },
-      );
-    }
+    const ohrcMinX = Math.min(...ohrcXCoords);
+    const ohrcMaxX = Math.max(...ohrcXCoords);
+    const ohrcMinY = Math.min(...ohrcYCoords);
+    const ohrcMaxY = Math.max(...ohrcYCoords);
 
-    // Spatial uniformity nodes distributed across all 4 quadrants
-    if (uniformityOn) {
-      baseNodes.push(
-        { id: 't8', x: 420, y: 260, label: 'Uniform Quadrant 4', isSource: true },
-        { id: 'l7', x: 680, y: 290, label: 'Uniform Ground Inlier', isSource: false },
-      );
-    }
+    const lroMinX = Math.min(...lroXCoords);
+    const lroMaxX = Math.max(...lroXCoords);
+    const lroMinY = Math.min(...lroYCoords);
+    const lroMaxY = Math.max(...lroYCoords);
 
-    const lines = [
-      { from: 't2', to: 'l1', order: 0 },
-      { from: 't1', to: 'l2', order: 1 },
-      { from: 't3', to: 'l2', order: 2 },
-      { from: 't3', to: 'l3', order: 3 },
-      { from: 't4', to: 'l3', order: 4 },
-      { from: 't5', to: 'l4', order: 5 },
-      { from: 't1', to: 't2', order: 1 },
-      { from: 't1', to: 't3', order: 2 },
-      { from: 't3', to: 't4', order: 3 },
-      { from: 't4', to: 't5', order: 4 },
-      { from: 'l1', to: 'l2', order: 3 },
-      { from: 'l2', to: 'l3', order: 4 },
-      { from: 'l2', to: 'l4', order: 5 },
-      { from: 'l3', to: 'l4', order: 5 },
-    ];
+    // Expand viewport to show more of both images (2x larger)
+    const ohrcCenterX = (ohrcMinX + ohrcMaxX) / 2;
+    const ohrcCenterY = (ohrcMinY + ohrcMaxY) / 2;
+    const ohrcRangeX = ohrcMaxX - ohrcMinX;
+    const ohrcRangeY = ohrcMaxY - ohrcMinY;
+    const ohrcViewportRangeX = ohrcRangeX * 2;
+    const ohrcViewportRangeY = ohrcRangeY * 2;
+    const ohrcViewportMinX = ohrcCenterX - ohrcViewportRangeX / 2;
+    const ohrcViewportMaxX = ohrcCenterX + ohrcViewportRangeX / 2;
+    const ohrcViewportMinY = ohrcCenterY - ohrcViewportRangeY / 2;
+    const ohrcViewportMaxY = ohrcCenterY + ohrcViewportRangeY / 2;
 
-    if (tileSize <= 256) {
-      lines.push(
-        { from: 't6', to: 'l5', order: 2 },
-        { from: 't7', to: 'l6', order: 3 },
-      );
-    }
+    const lroCenterX = (lroMinX + lroMaxX) / 2;
+    const lroCenterY = (lroMinY + lroMaxY) / 2;
+    const lroRangeX = lroMaxX - lroMinX;
+    const lroRangeY = lroMaxY - lroMinY;
+    const lroViewportRangeX = lroRangeX * 2;
+    const lroViewportRangeY = lroRangeY * 2;
+    const lroViewportMinX = lroCenterX - lroViewportRangeX / 2;
+    const lroViewportMaxX = lroCenterX + lroViewportRangeX / 2;
+    const lroViewportMinY = lroCenterY - lroViewportRangeY / 2;
+    const lroViewportMaxY = lroCenterY + lroViewportRangeY / 2;
 
-    if (tileSize <= 160) {
-      lines.push(
-        { from: 't9', to: 'l8', order: 1 },
-        { from: 't10', to: 'l9', order: 4 },
-      );
-    }
+    // Sort by distance from center
+    const pointsWithDistance = correspondencePoints.map(point => {
+      const normDx = (point.ohrc_patch_x - ohrcCenterX) / ohrcRangeX;
+      const normDy = (point.ohrc_patch_y - ohrcCenterY) / ohrcRangeY;
+      const distFromCenter = Math.sqrt(normDx * normDx + normDy * normDy);
+      return { ...point, distFromCenter };
+    });
 
-    if (claheOn) {
-      lines.push(
-        { from: 'tc1', to: 'lc1', order: 5 },
-      );
-    }
+    // Take all points, sorted by distance from center
+    const selectedPoints = pointsWithDistance.sort((a, b) => a.distFromCenter - b.distFromCenter);
 
-    if (uniformityOn) {
-      lines.push(
-        { from: 't8', to: 'l7', order: 4 },
-      );
-    }
+    // Create nodes for both source and reference images using expanded viewport
+    const nodes = [];
+    const lines = [];
 
-    // High MAGSAC threshold admits looser cross-vector candidates
-    if (magsacThreshold >= 3.0) {
-      lines.push(
-        { from: 't2', to: 'l2', order: 3 },
-        { from: 't4', to: 'l4', order: 4 },
-      );
-    }
+    selectedPoints.forEach((point, i) => {
+      // Source node (OHRC, left half: x in 0-500) using expanded viewport
+      const sourceX = ((point.ohrc_patch_x - ohrcViewportMinX) / ohrcViewportRangeX) * 500;
+      const sourceY = ((point.ohrc_patch_y - ohrcViewportMinY) / ohrcViewportRangeY) * 340;
+      nodes.push({
+        id: `src_${point.point_id}`,
+        x: sourceX,
+        y: sourceY,
+        label: `P${point.point_id}`,
+        isSource: true
+      });
 
-    return { constellationNodes: baseNodes, constellationLines: lines };
-  }, [tileSize, uniformityOn, magsacThreshold, claheOn]);
+      // Reference node (LRO, right half: x in 500-1000) using expanded viewport
+      const refX = ((point.lro_crop_x - lroViewportMinX) / lroViewportRangeX) * 500 + 500;
+      const refY = ((point.lro_crop_y - lroViewportMinY) / lroViewportRangeY) * 340;
+      nodes.push({
+        id: `ref_${point.point_id}`,
+        x: refX,
+        y: refY,
+        label: `P${point.point_id}`,
+        isSource: false
+      });
+
+      // Line connecting source to reference
+      lines.push({
+        from: `src_${point.point_id}`,
+        to: `ref_${point.point_id}`,
+        order: i
+      });
+    });
+
+    return { constellationNodes: nodes, constellationLines: lines };
+  }, [correspondencePoints]);
 
   const getNode = (id) => constellationNodes.find((n) => n.id === id);
 
@@ -1772,7 +1819,7 @@ export default function App() {
                     </div>
 
                     <img
-                      src="/assets/tmc2.jpg"
+                      src="http://localhost:8000/api/v1/files/figures/stage3_ohrc_norm.png"
                       alt="Chandrayaan-2 TMC-2 Orbiter Strip"
                       className="source-img"
                       style={{
@@ -1854,7 +1901,7 @@ export default function App() {
                     </div>
 
                     <img
-                      src="/assets/lronac.jpg"
+                      src="http://localhost:8000/api/v1/files/figures/stage3_lro_norm.png"
                       alt="NASA LRO NAC Reference Target"
                       className="source-img"
                       style={{
@@ -2457,113 +2504,44 @@ export default function App() {
               </div>
             </div>
 
-            {demoResults && !isLoadingDemo && (
-              <div style={{
-                marginTop: '24px',
-                padding: '20px',
-                background: 'rgba(0, 0, 0, 0.3)',
-                borderRadius: '12px',
-                border: '1px solid rgba(138, 107, 255, 0.2)'
+            {/* Registration Results */}
+            <div style={{
+              marginTop: '24px',
+              padding: '20px',
+              background: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: '12px',
+              border: '1px solid rgba(138, 107, 255, 0.2)'
+            }}>
+              <h3 style={{
+                color: 'var(--violet)',
+                fontSize: '14px',
+                fontFamily: 'var(--mono)',
+                marginBottom: '16px',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
               }}>
-                <h3 style={{
-                  color: 'var(--violet)',
-                  fontSize: '14px',
-                  fontFamily: 'var(--mono)',
-                  marginBottom: '16px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px'
-                }}>
-                  Registration Results
-                </h3>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: '16px'
-                }}>
-                  <div>
-                    <div style={{
-                      fontSize: '11px',
-                      color: 'var(--amber)',
-                      fontFamily: 'var(--mono)',
-                      marginBottom: '8px',
-                      textTransform: 'uppercase'
-                    }}>
-                      Overlay
-                    </div>
-                    <img
-                      src={`http://localhost:8000${demoResults.overlay_image_url}`}
-                      alt="Overlay"
-                      style={{
-                        width: '100%',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(251, 191, 36, 0.3)'
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
-                      }}
-                    />
-                    <div style={{ display: 'none', color: '#ef4444', fontSize: '11px', marginTop: '8px' }}>
-                      Failed to load image
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{
-                      fontSize: '11px',
-                      color: 'var(--emerald)',
-                      fontFamily: 'var(--mono)',
-                      marginBottom: '8px',
-                      textTransform: 'uppercase'
-                    }}>
-                      Registered
-                    </div>
-                    <img
-                      src={`http://localhost:8000${demoResults.registered_image_url}`}
-                      alt="Registered"
-                      style={{
-                        width: '100%',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(34, 197, 94, 0.3)'
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
-                      }}
-                    />
-                    <div style={{ display: 'none', color: '#ef4444', fontSize: '11px', marginTop: '8px' }}>
-                      Failed to load image
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{
-                      fontSize: '11px',
-                      color: 'var(--magenta)',
-                      fontFamily: 'var(--mono)',
-                      marginBottom: '8px',
-                      textTransform: 'uppercase'
-                    }}>
-                      Checkerboard
-                    </div>
-                    <img
-                      src={`http://localhost:8000${demoResults.checkerboard_image_url}`}
-                      alt="Checkerboard"
-                      style={{
-                        width: '100%',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(236, 72, 153, 0.3)'
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
-                      }}
-                    />
-                    <div style={{ display: 'none', color: '#ef4444', fontSize: '11px', marginTop: '8px' }}>
-                      Failed to load image
-                    </div>
-                  </div>
+                Registration Results
+              </h3>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <img
+                  src="http://localhost:8000/api/v1/files/figures/professional_suite.png"
+                  alt="Professional Registration Suite"
+                  style={{
+                    maxWidth: '100%',
+                    width: '800px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(138, 107, 255, 0.3)'
+                  }}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <div style={{ display: 'none', color: '#ef4444', fontSize: '12px', marginTop: '8px' }}>
+                  Failed to load professional suite image
                 </div>
               </div>
-            )}
+            </div>
 
             <div className="panel roadmap">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>

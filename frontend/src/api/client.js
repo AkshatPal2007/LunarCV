@@ -125,6 +125,18 @@ class LunarCVClient {
   }
 
   /**
+   * Get correspondence points from showcase submission
+   * @returns {Promise<Object>} Correspondence points data
+   */
+  async getCorrespondencePoints() {
+    const response = await fetch(`${API_BASE_URL}/config/correspondence-points`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch correspondence points: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
    * Health check
    * @returns {Promise<{status: string, version: string}>}
    */
