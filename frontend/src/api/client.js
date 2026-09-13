@@ -137,6 +137,18 @@ class LunarCVClient {
   }
 
   /**
+   * Get transform matrix from showcase submission
+   * @returns {Promise<Object>} Transform matrix data with type, matrix array, and error metrics
+   */
+  async getTransformMatrix() {
+    const response = await fetch(`${API_BASE_URL}/config/transform-matrix`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch transform matrix: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /**
    * Health check
    * @returns {Promise<{status: string, version: string}>}
    */

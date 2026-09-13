@@ -12,6 +12,7 @@ export default function App() {
   const [isLoadingDemo, setIsLoadingDemo] = useState(true);
   const [processingConfig, setProcessingConfig] = useState(null);
   const [correspondencePoints, setCorrespondencePoints] = useState(null);
+  const [transformMatrix, setTransformMatrix] = useState(null);
   const [imageDimensions, setImageDimensions] = useState({ ohrc: null, lro: null });
 
   // Controls state
@@ -108,7 +109,7 @@ export default function App() {
   // In-viewer display mode: 'dual' or 'split'
   const [viewerMode, setViewerMode] = useState('dual');
   const [splitPos, setSplitPos] = useState(50);
-  const [splitMode, setSplitMode] = useState('wipe');
+  const [splitMode, setSplitMode] = useState('overlay');
 
   // Active roadmap step
   const [activeStep, setActiveStep] = useState(3);
@@ -439,6 +440,19 @@ export default function App() {
       }
     };
     fetchCorrespondence();
+  }, []);
+
+  // Fetch transform matrix from backend
+  useEffect(() => {
+    const fetchTransform = async () => {
+      try {
+        const data = await apiClient.getTransformMatrix();
+        setTransformMatrix(data);
+      } catch (error) {
+        console.error('Failed to fetch transform matrix:', error);
+      }
+    };
+    fetchTransform();
   }, []);
 
   // Fetch processing config from backend
@@ -3075,34 +3089,48 @@ export default function App() {
         {/* TAB 4: ALIGNMENT & FOOTPRINT */}
         {activeTab === 'alignment' && (
           <div style={{ marginTop: '22px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="panel" style={{ padding: '20px' }}>
+            <div
+              className="panel"
+              style={{
+                padding: '20px',
+                background: 'rgba(8, 5, 22, 0.45)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
+                borderRadius: '20px',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '17px', color: '#ffffff' }}>Sub-Pixel Registration Verification (Split Wipe)</div>
+                  <div style={{ fontWeight: 700, fontSize: '17px', color: '#ffffff' }}>Registration Result Verification</div>
                   <div style={{ fontSize: '12.5px', color: 'var(--ink-dim)', fontFamily: 'var(--mono)' }}>
-                    Wipe curtain to compare crater alignment • Residual &lt; 0.32 px
+                    Visual comparison of registration outputs • RMSE &lt; 1.01 px
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', background: 'rgba(0,0,0,0.5)', padding: '3px', borderRadius: '8px', border: '1px solid var(--panel-edge)' }}>
-                  {['wipe', 'difference', 'checkerboard'].map((m) => (
+                  {[
+                    { id: 'overlay', label: 'Overlay' },
+                    { id: 'registered', label: 'Registered' },
+                    { id: 'checkerboard', label: 'Checkerboard' }
+                  ].map((m) => (
                     <button
-                      key={m}
-                      onClick={() => setSplitMode(m)}
+                      key={m.id}
+                      onClick={() => setSplitMode(m.id)}
                       style={{
-                        background: splitMode === m ? 'var(--violet)' : 'transparent',
-                        color: splitMode === m ? '#ffffff' : 'var(--ink-dim)',
+                        background: splitMode === m.id ? 'var(--violet)' : 'transparent',
+                        color: splitMode === m.id ? '#ffffff' : 'var(--ink-dim)',
                         border: 'none',
                         padding: '4px 10px',
                         borderRadius: '6px',
                         fontSize: '11px',
                         fontFamily: 'var(--mono)',
                         cursor: 'pointer',
-                        textTransform: 'capitalize',
                         transition: 'all 0.2s',
                       }}
                     >
-                      {m}
+                      {m.label}
                     </button>
                   ))}
                 </div>
@@ -3110,155 +3138,55 @@ export default function App() {
 
               <div
                 style={{
-                  position: 'relative',
                   width: '100%',
-                  height: '340px',
                   borderRadius: '10px',
                   overflow: 'hidden',
-                  border: '1px solid var(--panel-edge)',
-                  background: '#0a0716',
-                  userSelect: 'none',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: '40px',
                 }}
               >
-                {/* Background Layer: LRO NAC Reference */}
-                <img
-                  src="/assets/lro_crater_reference.jpg"
-                  alt="LRO NAC"
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-
-                {/* Mode 1: Split Wipe */}
-                {splitMode === 'wipe' && (
-                  <>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        width: `${splitPos}%`,
-                        overflow: 'hidden',
-                        borderRight: '2.5px solid var(--amber)',
-                        boxShadow: '0 0 16px var(--amber)',
-                        zIndex: 4,
-                      }}
-                    >
-                      <img
-                        src="/assets/ch2_crater_source.jpg"
-                        alt="TMC-2"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          height: '100%',
-                          width: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                      <span className="tag" style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 6 }}>
-                        TMC-2 SOURCE
-                      </span>
-                      <div className="split-handle">↔</div>
-                    </div>
-                    <span className="tag" style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 6 }}>
-                      LRO NAC REFERENCE
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={splitPos}
-                      onChange={(e) => setSplitPos(Number(e.target.value))}
-                      className="split-range-input"
-                      style={{ zIndex: 10 }}
-                    />
-                  </>
+                {/* Overlay mode */}
+                {splitMode === 'overlay' && (
+                  <img
+                    src="http://localhost:8000/api/v1/files/showcase_submission/overlay.png"
+                    alt="Overlay"
+                    style={{
+                      maxWidth: '40%',
+                      height: 'auto',
+                      display: 'block',
+                    }}
+                  />
                 )}
 
-                {/* Mode 2: Difference Heatmap */}
-                {splitMode === 'difference' && (
-                  <>
-                    <img
-                      src="/assets/ch2_crater_source.jpg"
-                      alt="TMC-2 Difference"
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        mixBlendMode: 'difference',
-                        filter: 'contrast(1.6) invert(0.1)',
-                        zIndex: 4,
-                      }}
-                    />
-                    <span className="tag" style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 6, background: 'rgba(236,72,153,0.85)', color: '#ffffff' }}>
-                      DIFFERENCE HEATMAP (ALIGNMENT RESIDUAL)
-                    </span>
-                  </>
+                {/* Registered mode */}
+                {splitMode === 'registered' && (
+                  <img
+                    src="http://localhost:8000/api/v1/files/showcase_submission/registered.png"
+                    alt="Registered"
+                    style={{
+                      maxWidth: '40%',
+                      height: 'auto',
+                      display: 'block',
+                    }}
+                  />
                 )}
 
-                {/* Mode 3: Checkerboard Alternating Mask */}
+                {/* Checkerboard mode */}
                 {splitMode === 'checkerboard' && (
-                  <>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        zIndex: 4,
-                        backgroundImage: `url('/assets/ch2_crater_source.jpg')`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        WebkitMaskImage: `
-                          linear-gradient(45deg, #000 25%, transparent 25%),
-                          linear-gradient(-45deg, #000 25%, transparent 25%),
-                          linear-gradient(45deg, transparent 75%, #000 75%),
-                          linear-gradient(-45deg, transparent 75%, #000 75%)
-                        `,
-                        WebkitMaskSize: '80px 80px',
-                        WebkitMaskPosition: '0 0, 0 40px, 40px -40px, -40px 0px',
-                        maskImage: `
-                          linear-gradient(45deg, #000 25%, transparent 25%),
-                          linear-gradient(-45deg, #000 25%, transparent 25%),
-                          linear-gradient(45deg, transparent 75%, #000 75%),
-                          linear-gradient(-45deg, transparent 75%, #000 75%)
-                        `,
-                        maskSize: '80px 80px',
-                        maskPosition: '0 0, 0 40px, 40px -40px, -40px 0px',
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        zIndex: 5,
-                        pointerEvents: 'none',
-                        backgroundSize: '80px 80px',
-                        backgroundImage: `
-                          linear-gradient(to right, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
-                          linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 1px, transparent 1px)
-                        `,
-                      }}
-                    />
-                    <span className="tag" style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 6, background: 'rgba(138, 107, 255, 0.9)' }}>
-                      CHECKERBOARD: TMC-2 ⛶ LRO NAC
-                    </span>
-                    <span className="tag" style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 6 }}>
-                      ALTERNATING 80px BLOCKS
-                    </span>
-                  </>
+                  <img
+                    src="http://localhost:8000/api/v1/files/showcase_submission/checkerboard.png"
+                    alt="Checkerboard"
+                    style={{
+                      maxWidth: '40%',
+                      height: 'auto',
+                      display: 'block',
+                    }}
+                  />
                 )}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--ink-dim)' }}>
-                <span>Drag curtain horizontally across ridges and crater peaks</span>
-                <span style={{ color: 'var(--amber)' }}>Curtain position: {splitPos}%</span>
               </div>
             </div>
 
@@ -3266,17 +3194,20 @@ export default function App() {
               <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontWeight: 700, fontSize: '17px', color: '#ffffff' }}>Lunar Geographic Footprint (19.2°N, 43.1°E)</div>
                 <div style={{ fontSize: '12.5px', color: 'var(--ink-dim)', fontFamily: 'var(--mono)' }}>
-                  Spatial intersection and 3x3 homography transformation coordinates
+                  Spatial intersection and 2x3 {transformMatrix?.transform_type || 'transform'} matrix coordinates
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
                 <div style={{ border: '1px solid var(--panel-edge)', borderRadius: '12px', padding: '16px', background: 'rgba(0,0,0,0.5)' }}>
                   <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', color: 'var(--ink-dim)', marginBottom: '12px' }}>
-                    Projective Homography Matrix (H_3x3)
+                    {transformMatrix?.transform_type ? `${transformMatrix.transform_type.charAt(0).toUpperCase() + transformMatrix.transform_type.slice(1)} Transform Matrix (M_2x3)` : 'Transform Matrix (M_2x3)'}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', fontFamily: 'var(--mono)', fontSize: '12px', textAlign: 'center' }}>
-                    {['0.9984', '-0.0124', '14.281', '0.0118', '0.9991', '-8.405', '0.0000', '0.0000', '1.0000'].map((val, idx) => (
+                    {(transformMatrix && transformMatrix.matrix ?
+                      transformMatrix.matrix.slice(0, 2).flat().map(val => val.toFixed(4)) :
+                      ['0.9984', '-0.0124', '14.281', '0.0118', '0.9991', '-8.405']
+                    ).map((val, idx) => (
                       <div key={idx} style={{ padding: '10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', color: 'var(--amber)', fontWeight: 600 }}>
                         {val}
                       </div>

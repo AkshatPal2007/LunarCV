@@ -5,9 +5,11 @@ Configuration endpoints for the frontend to fetch processing parameters.
 import csv
 from pathlib import Path
 
+import numpy as np
 from fastapi import APIRouter, HTTPException
 
 from lunarcv import processing_config
+from lunarcv.models.objects import TransformModel
 from app.config import settings
 
 router = APIRouter()
@@ -38,6 +40,27 @@ async def get_correspondence_points():
             })
 
     return {"points": points}
+
+
+@router.get("/config/transform-matrix")
+async def get_transform_matrix():
+    """
+    Get the transform matrix from the showcase submission pipeline.
+    Returns the 3x3 transformation matrix as JSON.
+    """
+    meta_path = settings.BASE_DIR / "outputs" / "pipeline" / "ohrc_to_lro_registration" / "transform" / "transform_meta.json"
+
+    if not meta_path.exists():
+        raise HTTPException(status_code=404, detail="Transform matrix file not found")
+
+    transform = TransformModel.load(meta_path)
+
+    return {
+        "transform_type": transform.transform_type,
+        "matrix": transform.matrix.tolist(),
+        "mean_error": transform.mean_error,
+        "rmse": transform.rmse
+    }
 
 
 @router.get("/config/processing")
