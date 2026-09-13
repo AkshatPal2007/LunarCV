@@ -58,6 +58,16 @@ def parse_ohrc_geometry_csv(csv_path: Path) -> dict:
         n_scans: int, total number of unique scan lines
         n_pixels_per_scan: int, max pixel index + 1
     """
+    cache_path = csv_path.parent / (csv_path.stem + "_geom_cache.pkl")
+    if cache_path.exists():
+        import pickle
+
+        try:
+            with open(cache_path, "rb") as f:
+                return pickle.load(f)
+        except Exception:
+            pass
+
     scan_lats: dict[int, list[float]] = {}
     scan_lons: dict[int, list[float]] = {}
     all_lats = []
@@ -94,13 +104,23 @@ def parse_ohrc_geometry_csv(csv_path: Path) -> dict:
         max_lon=max(all_lons),
     )
 
-    return {
+    result = {
         "scan_to_lat": scan_to_lat,
         "scan_to_lon": scan_to_lon,
         "full_footprint": full_footprint,
         "n_scans": len(scan_lats),
         "n_pixels_per_scan": max_pixel + 1,
     }
+
+    try:
+        import pickle
+
+        with open(cache_path, "wb") as f:
+            pickle.dump(result, f)
+    except Exception:
+        pass
+
+    return result
 
 
 def ohrc_patch_footprint(

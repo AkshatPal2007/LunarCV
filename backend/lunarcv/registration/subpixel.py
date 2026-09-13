@@ -95,11 +95,12 @@ def refine_matches(
         peak_x, peak_y = peak
         offset_x = _quadratic_peak_offset(response[peak_y, :], peak_x)
         offset_y = _quadratic_peak_offset(response[:, peak_x], peak_y)
-        refined_src[index] = (
-            sx - search_radius + peak_x + offset_x,
-            sy - search_radius + peak_y + offset_y,
-        )
-        scores[index] = peak_score
+        cand_x = sx - search_radius + peak_x + offset_x
+        cand_y = sy - search_radius + peak_y + offset_y
+        disp = np.hypot(cand_x - float(src_pt[0]), cand_y - float(src_pt[1]))
+        if disp <= 1.0:
+            refined_src[index] = (cand_x, cand_y)
+            scores[index] = peak_score
 
     displacement = np.linalg.norm(refined_src - src_points, axis=1)
     accepted = np.isfinite(scores)

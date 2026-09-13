@@ -59,11 +59,28 @@ def magsac_filter(
     pts_src = mkpts_src.astype(np.float32)
     pts_ref = mkpts_ref.astype(np.float32)
 
-    if model == "homography":
-        # Estimate H mapping pts_ref (LRO reference) -> pts_src (TMC-2 target)
-        M, raw_mask = cv2.findHomography(
-            pts_ref,
+    if model == "affine":
+        M, raw_mask = cv2.estimateAffine2D(
             pts_src,
+            pts_ref,
+            method=cv2.USAC_MAGSAC,
+            ransacReprojThreshold=ransac_reproj_threshold,
+            maxIters=max_iters,
+            confidence=confidence,
+        )
+    elif model == "similarity":
+        M, raw_mask = cv2.estimateAffinePartial2D(
+            pts_src,
+            pts_ref,
+            method=cv2.RANSAC,
+            ransacReprojThreshold=ransac_reproj_threshold,
+            maxIters=max_iters,
+            confidence=confidence,
+        )
+    elif model == "homography":
+        M, raw_mask = cv2.findHomography(
+            pts_src,
+            pts_ref,
             method=cv2.USAC_MAGSAC,
             ransacReprojThreshold=ransac_reproj_threshold,
             maxIters=max_iters,

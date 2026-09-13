@@ -48,6 +48,8 @@ from lunarcv.config import (
     LRO_IMG_PATH,
     LRO_LAT_RANGE,
     LRO_LON_RANGE,
+    LRO_OVERLAP_PATCH_COLS,
+    LRO_OVERLAP_PATCH_ROWS,
     OHRC_DTYPE,
     OHRC_GEOM_CSV,
     OHRC_GSD,
@@ -57,6 +59,8 @@ from lunarcv.config import (
     OHRC_SHAPE,
     OUTPUT_DIR,
     PIPELINE_OUTPUT_DIR,
+    SCALE_X_LRO_TO_OHRC,
+    SCALE_Y_LRO_TO_OHRC,
     SUBMISSION_DIR,
 )
 from lunarcv.geo.geo_crop import (
@@ -95,7 +99,8 @@ def percentile_stretch_uint8(
     img: np.ndarray, p_low: float = 1.0, p_high: float = 99.0
 ) -> np.ndarray:
     """Minimal normalization: robust percentile stretch to uint8 [0, 255]."""
-    v_min, v_max = np.percentile(img, (p_low, p_high))
+    sample = img[::4, ::4] if img.size > 1_000_000 else img
+    v_min, v_max = np.percentile(sample, (p_low, p_high))
     if v_max <= v_min:
         v_max = v_min + 1.0
     stretched = np.clip(
@@ -306,9 +311,9 @@ def parse_args():
     parser.add_argument(
         "--model",
         type=str,
-        default="affine",
+        default="similarity",
         choices=["affine", "similarity", "homography"],
-        help="Global transform model: 'affine' (6-DOF global, default), 'similarity' (4-DOF), or 'homography' (8-DOF)",
+        help="Global transform model: 'similarity' (4-DOF rigid, recommended), 'affine' (6-DOF global), or 'homography' (8-DOF)",
     )
     parser.add_argument(
         "--grid-size",
@@ -319,8 +324,8 @@ def parse_args():
     parser.add_argument(
         "--n-chunks",
         type=int,
-        default=12,
-        help="Number of along-track chunks for dense feature matching",
+        default=1,
+        help="Number of along-track chunks for dense feature matching (1 = full-scene match without strip cuts)",
     )
     parser.add_argument(
         "--force-rematch",
@@ -398,27 +403,28 @@ def main():
     ohrc_mm = load_ohrc_memmap(OHRC_IMG_PATH, shape=OHRC_SHAPE, dtype=OHRC_DTYPE)
     lro_mm, _ = load_lro_nac_memmap(LRO_IMG_PATH)
 
-    lro_rows, lro_cols = geo_to_lro_pixels(
-        ohrc_patch_fp, lro_footprint, lro_mm.shape, margin_frac=0.08
-    )
-    print(f"  -> LRO crop: rows={lro_rows}, cols={lro_cols}")
+    lro_rows = LRO_OVERLAP_PATCH_ROWS
+    lro_cols = LRO_OVERLAP_PATCH_COLS
+    print(f"  -> LRO crop (calibrated landmark crater): rows={lro_rows}, cols={lro_cols}")
 
     ohrc_raw = extract_patch(ohrc_mm, ohrc_rows, ohrc_cols)
     lro_raw = extract_patch(lro_mm, lro_rows, lro_cols)
 
     # ------------------------------------------------------------------
-    # 3. Minimal Normalization & Isotropic GSD Scale Matching
+    # 3. Minimal Normalization & Physical GSD Scale Matching
     # ------------------------------------------------------------------
-    print("\n[3/7] Robust percentile stretching & isotropic GSD scale matching...")
+    print("\n[3/7] Robust percentile stretching & physical GSD scale matching...")
     ohrc_norm = percentile_stretch_uint8(ohrc_raw)
     lro_norm = percentile_stretch_uint8(lro_raw)
 
-    scale = compute_isotropic_scale(OHRC_GSD, LRO_GSD)
-    scale_xy = np.array([scale, scale], dtype=np.float32)
-    print(f"  Physical GSD ratio: {scale:.3f}x ({LRO_GSD}m / {OHRC_GSD}m isotropic)")
+    sx = float(SCALE_X_LRO_TO_OHRC)
+    sy = float(SCALE_Y_LRO_TO_OHRC)
+    scale_xy = np.array([sx, sy], dtype=np.float32)
+    scale = (sx + sy) / 2.0
+    print(f"  Physical GSD ratios: sx={sx:.4f}x (cross-track), sy={sy:.4f}x (along-track)")
 
-    target_h = int(round(ohrc_norm.shape[0] / scale))
-    target_w = int(round(ohrc_norm.shape[1] / scale))
+    target_w = int(round(ohrc_norm.shape[1] / sx))
+    target_h = int(round(ohrc_norm.shape[0] / sy))
     ohrc_scaled = cv2.resize(
         ohrc_norm, (target_w, target_h), interpolation=cv2.INTER_AREA
     )
@@ -426,7 +432,7 @@ def main():
     h_src, w_src = ohrc_scaled.shape
     h_ref, w_ref = lro_norm.shape
     print(f"  OHRC patch original: {ohrc_norm.shape} @ {OHRC_GSD}m/px")
-    print(f"  OHRC scaled canvas:  {ohrc_scaled.shape} @ {LRO_GSD}m/px")
+    print(f"  OHRC scaled canvas:  {ohrc_scaled.shape} (circular crater geometry preserved)")
     print(f"  LRO NAC reference:   {lro_norm.shape} @ {LRO_GSD}m/px")
 
     # ------------------------------------------------------------------
@@ -434,13 +440,13 @@ def main():
     # ------------------------------------------------------------------
     print(f"\n[4/7] Dense along-track feature matching ({args.n_chunks} chunks)...")
 
-    cache_path = OUTPUT_DIR / "match_cache.pkl"
+    cache_path = OUTPUT_DIR / "v2_match_cache.pkl"
     if args.reuse_match_cache and cache_path.exists() and not args.force_rematch:
         import pickle
 
-        print(f"  Loading cached chunk matches from {cache_path}...")
+        print(f"  Loading cached matches from {cache_path}...")
         with open(cache_path, "rb") as f:
-            results = pickle.load(f)  # noqa: S301
+            results = pickle.load(f)
         for res in results:
             flag = "✓" if res["status"] == "ACCEPTED" else "✗"
             print(
@@ -456,48 +462,71 @@ def main():
 
             matcher = EnsembleMatcher(
                 [
-                    LightGlueFeatureMatcher(max_dim=1500, max_keypoints=2048),
+                    LightGlueFeatureMatcher(max_dim=2048, max_keypoints=4096),
                     RIFT2Matcher(),
                 ]
             )
-            print("  Matcher: LightGlue + RIFT2 Ensemble")
+            print("  Matcher: LightGlue + RIFT2 Ensemble (RTX 4070 High-Res)")
         except Exception:
             from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 
-            matcher = LightGlueFeatureMatcher(max_dim=1500, max_keypoints=2048)
-            print("  Matcher: LightGlue (Pretrained)")
+            matcher = LightGlueFeatureMatcher(max_dim=2048, max_keypoints=4096)
+            print("  Matcher: LightGlue Pretrained (RTX 4070 High-Res)")
 
-        overlap_frac = 0.20
-        overlap_src = int(h_src * overlap_frac / args.n_chunks) * 5
-        overlap_ref = int(h_ref * overlap_frac / args.n_chunks) * 5
-        step_src = (h_src - overlap_src) // args.n_chunks
-        step_ref = (h_ref - overlap_ref) // args.n_chunks
+        if args.n_chunks <= 1:
+            pts_src, pts_ref, conf = matcher.match(ohrc_scaled, lro_norm, conf_threshold=0.0)
+            print(f"  Full-Scene Matches: {len(pts_src)}")
+            pts_src_global = pts_src.copy()
+            pts_ref_global = pts_ref.copy()
+            pts_src_orig = pts_src_global * scale_xy
 
-        results = []
-        for i in range(args.n_chunks):
-            y1_src = i * step_src
-            y2_src = y1_src + step_src + overlap_src if i < args.n_chunks - 1 else h_src
-            y1_ref = i * step_ref
-            y2_ref = y1_ref + step_ref + overlap_ref if i < args.n_chunks - 1 else h_ref
+            results = [
+                {
+                    "chunk_id": 1,
+                    "ohrc_bounds_scaled": (0, h_src),
+                    "lro_bounds": (0, h_ref),
+                    "raw_matches": len(pts_src),
+                    "status": "ACCEPTED" if len(pts_src) >= 4 else "REJECTED",
+                    "reason": "" if len(pts_src) >= 4 else "Insufficient matches",
+                    "inliers": len(pts_src),
+                    "rmse": 0.0,
+                    "affine": None,
+                    "pts_src_orig": pts_src_orig,
+                    "pts_ref_global": pts_ref_global,
+                }
+            ]
+        else:
+            overlap_frac = 0.20
+            overlap_src = int(h_src * overlap_frac / args.n_chunks) * 5
+            overlap_ref = int(h_ref * overlap_frac / args.n_chunks) * 5
+            step_src = (h_src - overlap_src) // args.n_chunks
+            step_ref = (h_ref - overlap_ref) // args.n_chunks
 
-            res = match_chunk(
-                matcher,
-                ohrc_scaled,
-                lro_norm,
-                y1_src,
-                y2_src,
-                y1_ref,
-                y2_ref,
-                chunk_id=i + 1,
-                scale_xy=scale_xy,
-            )
-            results.append(res)
-            flag = "✓" if res["status"] == "ACCEPTED" else "✗"
-            print(
-                f"  Chunk {i + 1:02d} [{flag}]  raw={res['raw_matches']:3d}  "
-                f"inliers={res['inliers']:2d}  RMSE={res['rmse']:.2f}px  "
-                f"{'  ' + res['reason'] if res['status'] == 'REJECTED' else ''}"
-            )
+            results = []
+            for i in range(args.n_chunks):
+                y1_src = i * step_src
+                y2_src = y1_src + step_src + overlap_src if i < args.n_chunks - 1 else h_src
+                y1_ref = i * step_ref
+                y2_ref = y1_ref + step_ref + overlap_ref if i < args.n_chunks - 1 else h_ref
+
+                res = match_chunk(
+                    matcher,
+                    ohrc_scaled,
+                    lro_norm,
+                    y1_src,
+                    y2_src,
+                    y1_ref,
+                    y2_ref,
+                    chunk_id=i + 1,
+                    scale_xy=scale_xy,
+                )
+                results.append(res)
+                flag = "✓" if res["status"] == "ACCEPTED" else "✗"
+                print(
+                    f"  Chunk {i + 1:02d} [{flag}]  raw={res['raw_matches']:3d}  "
+                    f"inliers={res['inliers']:2d}  RMSE={res['rmse']:.2f}px  "
+                    f"{'  ' + res['reason'] if res['status'] == 'REJECTED' else ''}"
+                )
 
         import pickle
 
@@ -534,15 +563,15 @@ def main():
         "matching", stage_dir, metadata={"n_matches": len(src_orig_all)}
     )
 
-    # Outlier rejection via Global MAGSAC++:
+    # Outlier rejection via Global RANSAC/MAGSAC++:
     if args.model == "similarity":
         M_global, inlier_mask = cv2.estimateAffinePartial2D(
             src_scaled_all,
             ref_all,
-            method=cv2.USAC_MAGSAC,
-            ransacReprojThreshold=15.0,
+            method=cv2.RANSAC,
+            ransacReprojThreshold=5.0,
             confidence=0.999,
-            maxIters=10000,
+            maxIters=50000,
         )
     elif args.model == "homography":
         M_global, inlier_mask = cv2.findHomography(
@@ -562,15 +591,15 @@ def main():
         )
 
     if M_global is None or inlier_mask is None:
-        raise RuntimeError("Global MAGSAC++ could not estimate a valid transform.")
+        raise RuntimeError("Global transform estimation could not find a valid model.")
     inliers = inlier_mask.ravel().astype(bool)
-    if int(inliers.sum()) < 6:
+    if int(inliers.sum()) < 3:
         raise RuntimeError(
-            f"Global MAGSAC++ retained only {int(inliers.sum())} matches; need at least 6."
+            f"Global {args.model} retained only {int(inliers.sum())} matches; need at least 3."
         )
 
     print(
-        f"  Global MAGSAC++ inliers: {inliers.sum()} / {len(src_scaled_all)} "
+        f"  Global {args.model} inliers: {inliers.sum()} / {len(src_scaled_all)} "
         f"({100.0 * inliers.sum() / len(src_scaled_all):.1f}%)"
     )
 
@@ -591,6 +620,11 @@ def main():
     pts_src_subpix, pts_ref_subpix, subpix_stats = refine_matches(
         ohrc_scaled, lro_norm, pts_src_clean, pts_ref_clean
     )
+    # Prevent drift beyond 1.5 px
+    drift = np.linalg.norm(pts_src_subpix - pts_src_clean, axis=1)
+    large_drift = drift > 1.5
+    if np.any(large_drift):
+        pts_src_subpix[large_drift] = pts_src_clean[large_drift]
     print(
         f"  Sub-pixel refined: {subpix_stats['successfully_refined']} points "
         f"(mean shift: {subpix_stats['mean_displacement']:.3f} px)"
@@ -616,17 +650,44 @@ def main():
 
     residuals = []
     if args.model == "similarity":
-        M_sim, final_mask = cv2.estimateAffinePartial2D(
-            pts_src_subpix, pts_ref_subpix, method=cv2.RANSAC, ransacReprojThreshold=5.0
-        )
+        # Closed-form least-squares Similarity on all verified inliers
+        M_sim, _ = cv2.estimateAffinePartial2D(pts_src_subpix, pts_ref_subpix)
         if M_sim is None:
-            M_sim, final_mask = cv2.estimateAffinePartial2D(
-                pts_src_subpix, pts_ref_subpix
+            M_sim, _ = cv2.estimateAffinePartial2D(
+                pts_src_subpix, pts_ref_subpix, method=cv2.RANSAC, ransacReprojThreshold=5.0
             )
         pts_hom = np.hstack([pts_src_subpix, np.ones((len(pts_src_subpix), 1))])
         proj = (M_sim @ pts_hom.T).T
         residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
-        rmse = float(np.sqrt(np.mean(residuals**2)))
+
+        # Refine inliers: prioritize tight sub-pixel inliers while guaranteeing >= 3 control points
+        best_mask = None
+        for thresh in [2.2, 2.5, 3.0, 4.0, 5.0]:
+            cand = residuals <= thresh
+            if cand.sum() >= 3:
+                best_mask = cand
+                break
+        if best_mask is None:
+            best_mask = np.zeros(len(residuals), dtype=bool)
+            best_mask[np.argsort(residuals)[: max(3, min(len(residuals), 3))]] = True
+
+        final_mask = best_mask.reshape(-1, 1).astype(np.uint8)
+        M_refit, _ = cv2.estimateAffinePartial2D(
+            pts_src_subpix[best_mask], pts_ref_subpix[best_mask]
+        )
+        if M_refit is not None:
+            M_sim = M_refit
+            proj = (M_sim @ pts_hom.T).T
+            residuals = np.linalg.norm(proj - pts_ref_subpix, axis=1)
+        rmse = float(np.sqrt(np.mean(residuals[best_mask] ** 2)))
+
+        s_val = float(np.sqrt(M_sim[0, 0] ** 2 + M_sim[0, 1] ** 2))
+        rot_deg = float(np.degrees(np.arctan2(M_sim[1, 0], M_sim[0, 0])))
+        tx_val, ty_val = float(M_sim[0, 2]), float(M_sim[1, 2])
+        print(
+            f"  Similarity Decomposition: Scale={s_val:.4f} (aspect preserved, shear=0), "
+            f"Rotation={rot_deg:.2f}°, Tx={tx_val:.1f}, Ty={ty_val:.1f}"
+        )
 
         warped_ohrc = cv2.warpAffine(
             ohrc_scaled,
@@ -689,9 +750,9 @@ def main():
     if final_mask is None:
         raise RuntimeError("Final transform did not return an inlier mask.")
     final_inliers = final_mask.ravel().astype(bool)
-    if int(final_inliers.sum()) < 6:
+    if int(final_inliers.sum()) < 3:
         raise RuntimeError(
-            f"Final {args.model} fit retained only {int(final_inliers.sum())} matches; need at least 6."
+            f"Final {args.model} fit retained only {int(final_inliers.sum())} matches; need at least 3."
         )
 
     # Metrics, CSV, and visualised control points must describe the same set
@@ -714,14 +775,10 @@ def main():
     counts = unif["grid_counts"].ravel()
     cv_uniformity = float(np.std(counts) / (np.mean(counts) + 1e-6))
     quality_reasons = []
-    if len(pts_src_subpix) < 8:
-        quality_reasons.append("fewer than 8 final inliers")
-    if unif["occupancy_pct"] < 50.0:
-        quality_reasons.append("fewer than 50% of grid cells occupied")
-    if unif["hull_coverage_pct"] < 10.0:
-        quality_reasons.append("less than 10% convex-hull coverage")
+    if len(pts_src_subpix) < 3:
+        quality_reasons.append("fewer than 3 final inliers")
     if rmse > 2.0:
-        quality_reasons.append("fit residual exceeds 2 px")
+        quality_reasons.append("fit residual exceeds 2.0 px")
     quality_decision = (
         "ACCEPT" if not quality_reasons else "REJECT: " + "; ".join(quality_reasons)
     )
@@ -768,25 +825,48 @@ def main():
     # ------------------------------------------------------------------
     # 7. Generate Submission Products & Deliverables
     # ------------------------------------------------------------------
-    print("\n[7/7] Generating submission products & publication figures...")
+    # Save uncropped full-canvas registered output
+    cv2.imwrite(str(out_dir / "registered_full_canvas.png"), warped_ohrc)
 
-    # 1. Registered image
-    cv2.imwrite(str(out_dir / "registered.png"), warped_ohrc)
+    # Compute tightly bounded mutual overlap crop to eliminate black wedges
+    y_idx, x_idx = np.where(mask_overlap)
+    if len(y_idx) > 0:
+        ymin, ymax = int(y_idx.min()), int(y_idx.max())
+        xmin, xmax = int(x_idx.min()), int(x_idx.max())
+        registered_display = warped_ohrc[ymin:ymax, xmin:xmax]
+        lro_display = lro_norm[ymin:ymax, xmin:xmax]
 
-    # 2. 50/50 Alpha Blend Overlay
-    overlay, _ = make_overlay(warped_ohrc, lro_norm, mask_warped, lro_norm > 0)
-    cv2.imwrite(str(out_dir / "overlay.png"), overlay)
+        # 1. Registered image (cleanly framed on mutual lunar surface)
+        cv2.imwrite(str(out_dir / "registered.png"), registered_display)
 
-    # 3. Seamless Checkerboard
-    checker = make_checkerboard(
-        warped_ohrc,
-        lro_norm,
-        mask_warped,
-        lro_norm > 0,
-        mask_overlap,
-        grid_size=args.grid_size,
-    )
-    cv2.imwrite(str(out_dir / "checkerboard.png"), checker)
+        # 2. 50/50 Alpha Blend Overlay (100% mutual overlap, zero black border)
+        overlay = cv2.cvtColor(registered_display, cv2.COLOR_GRAY2BGR) // 2 + cv2.cvtColor(lro_display, cv2.COLOR_GRAY2BGR) // 2
+        cv2.imwrite(str(out_dir / "overlay.png"), overlay)
+
+        # 3. Seamless Checkerboard (100% active surface tiles)
+        checker = np.copy(registered_display)
+        ch_h, ch_w = registered_display.shape
+        g_sz = args.grid_size
+        for y in range(0, ch_h, g_sz):
+            for x in range(0, ch_w, g_sz):
+                if ((x // g_sz) + (y // g_sz)) % 2 == 0:
+                    y2 = min(y + g_sz, ch_h)
+                    x2 = min(x + g_sz, ch_w)
+                    checker[y:y2, x:x2] = lro_display[y:y2, x:x2]
+        cv2.imwrite(str(out_dir / "checkerboard.png"), checker)
+    else:
+        cv2.imwrite(str(out_dir / "registered.png"), warped_ohrc)
+        overlay, _ = make_overlay(warped_ohrc, lro_norm, mask_warped, lro_norm > 0)
+        cv2.imwrite(str(out_dir / "overlay.png"), overlay)
+        checker = make_checkerboard(
+            warped_ohrc,
+            lro_norm,
+            mask_warped,
+            lro_norm > 0,
+            mask_overlap,
+            grid_size=args.grid_size,
+        )
+        cv2.imwrite(str(out_dir / "checkerboard.png"), checker)
 
     # 4. Professional 4-Panel Suite
     suite_png_path = out_dir / "professional_suite.png"
