@@ -576,6 +576,45 @@ def main():
         title=f"Stage 4: Raw Feature Correspondences ({len(src_scaled_all)} matches)",
     )
 
+    # Save Stage 4 correspondence coordinates CSV (70 raw match points)
+    stage4_csv_path = fig_dir / "points correspondence .csv"
+    with open(stage4_csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "point_id",
+                "ohrc_patch_x",
+                "ohrc_patch_y",
+                "ohrc_full_x",
+                "ohrc_full_y",
+                "lro_crop_x",
+                "lro_crop_y",
+                "lro_full_x",
+                "lro_full_y",
+            ]
+        )
+        for idx, (s_orig, r) in enumerate(
+            zip(src_orig_all, ref_all, strict=True), start=1
+        ):
+            writer.writerow(
+                [
+                    idx,
+                    round(float(s_orig[0]), 2),
+                    round(float(s_orig[1]), 2),
+                    round(float(s_orig[0] + ohrc_cols[0]), 2),
+                    round(float(s_orig[1] + ohrc_rows[0]), 2),
+                    round(float(r[0]), 2),
+                    round(float(r[1]), 2),
+                    round(float(r[0] + lro_cols[0]), 2),
+                    round(float(r[1] + lro_rows[0]), 2),
+                ]
+            )
+    shutil.copyfile(stage4_csv_path, fig_dir / "points_correspondence.csv")
+    shutil.copyfile(stage4_csv_path, fig_dir / "stage4_points_correspondence.csv")
+    print(
+        f"  Stage 4 correspondence CSV ({len(src_orig_all)} points) -> {stage4_csv_path}"
+    )
+
     # Save initial matches
     matches = MatchSet(
         source_name="ohrc",
