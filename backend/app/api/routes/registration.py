@@ -3,8 +3,9 @@ Registration endpoints.
 """
 
 import json
+import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
@@ -18,6 +19,8 @@ from app.schemas.registration import (
 )
 from app.services.registration_service import run_registration
 from app.services.validation_service import validate_registration_pair
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,9 +38,10 @@ def _load_demo_job_results(job_id: str) -> RegistrationResults:
         raise HTTPException(status_code=404, detail="Demo job not found")
 
     if not metrics_path.exists():
+        logger.error("Demo job metrics not found at %s", metrics_path)
         raise HTTPException(
             status_code=404,
-            detail=f"Demo job metrics not found at {metrics_path}"
+            detail="Demo job metrics not found"
         )
 
     with open(metrics_path) as f:
@@ -84,11 +88,11 @@ async def create_registration_job(
 
     # Log warnings if any
     for warning in validation.get("warnings", []):
-        print(f"[WARNING] Registration validation: {warning}")
+        logger.warning("[WARNING] Registration validation: %s", warning)
 
     # Create job
     job_id = str(uuid.uuid4())
-    created_at = datetime.utcnow().isoformat()
+    created_at = datetime.now(UTC).isoformat()
 
     job_store[job_id] = {
         "job_id": job_id,

@@ -1,103 +1,73 @@
 # LunarCV Backend
 
-FastAPI backend for the LunarCV multi-modal lunar image registration system.
+The backend provides the FastAPI application and the maintained Python image
+registration library.
 
-## Structure
+## Components
 
-```
-backend/
-├── app/                          # FastAPI application
-│   ├── api/
-│   │   └── routes/              # API endpoints
-│   │       ├── health.py        # Health check
-│   │       ├── upload.py        # Image upload
-│   │       └── registration.py  # Registration jobs
-│   ├── schemas/                 # Pydantic models
-│   ├── services/                # Business logic
-│   │   └── registration_service.py
-│   ├── config.py                # API configuration
-│   └── main.py                  # FastAPI app entry point
-│
-├── lunarcv/                     # Core CV library
-│   ├── io/                      # Memory-mapped I/O
-│   ├── preprocessing/           # Image normalization
-│   ├── matching/                # Feature matchers (LightGlue, etc.)
-│   ├── registration/            # Outlier rejection, transform
-│   └── config.py                # CV pipeline config
-│
-└── scripts/
-    └── register_pair.py         # CLI registration tool
-```
+- `app/`: API routes, Pydantic schemas, upload validation, and registration
+  services.
+- `lunarcv/`: image I/O, geographic priors, normalization, LightGlue/RIFT2
+  matching, MAGSAC++ filtering, spatial-uniformity metrics, sub-pixel
+  refinement, and transform/warp utilities.
+- `scripts/register_pair.py`: real-data batch registration entry point.
+- `tests/`: backend-focused tests for evaluation metadata and manifest logic.
 
-## Installation
+## Setup
 
-From the `backend/` directory:
+From the repository root:
 
 ```bash
-# Using uv (recommended)
+cd backend
 uv sync
-
-# Or using pip
-pip install -e .
 ```
 
-## Running the API Server
+The project requires Python 3.11 or newer. `uv.lock` records the resolved
+backend environment.
+
+## Run the API
 
 ```bash
 cd backend
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-API documentation: http://localhost:8000/docs
+OpenAPI documentation is served at `http://localhost:8000/docs`. The API
+prefix is `/api/v1`.
 
-## API Endpoints
+Implemented operations include:
 
-### Upload Images
-```bash
-POST /api/v1/upload
-```
-Upload source or reference image (supports .img, .tif, .png, .jpg)
+- `GET /health`
+- `POST /upload`
+- `GET /images`
+- `POST /register`
+- `GET /jobs/{job_id}`
+- `GET /jobs/{job_id}/results`
+- `GET /config/correspondence-points`
+- `GET /config/transform-matrix`
+- `GET /config/processing`
 
-### Start Registration Job
-```bash
-POST /api/v1/register
-Body: {
-  "source_image_id": "uuid-from-upload",
-  "reference_image_id": "uuid-from-upload",
-  "matcher": "lightglue"
-}
-```
+## Batch Registration
 
-### Check Job Status
-```bash
-GET /api/v1/jobs/{job_id}
-```
-
-### Get Results
-```bash
-GET /api/v1/jobs/{job_id}/results
-```
-
-Returns metrics, registered image, overlay, checkerboard, and correspondence CSV.
-
-## CLI Usage
-
-Run registration from command line:
+The batch script expects the real OHRC image, calibrated OHRC geometry CSV,
+and LRO NAC image configured in `lunarcv/config.py`:
 
 ```bash
 cd backend
-python -m scripts.register_pair
+uv run python scripts/register_pair.py
 ```
 
-## Development
+Full-resolution runs can be resource intensive. They write generated products
+to local output directories that are ignored by Git.
+
+## Tests and Checks
 
 ```bash
-# Run linter
-ruff check .
-
-# Format code
-ruff format .
-
-# Run tests
-pytest
+cd backend
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
 ```
+
+The repository also contains legacy top-level tests for standalone helpers in
+`../src`; those are outside this backend package's pytest configuration.

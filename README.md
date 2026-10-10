@@ -1,333 +1,257 @@
-# 🌕 LunarCV: Multi-Modal Lunar Image Registration
+# LunarCV
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.141+-green.svg)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
-[![Vite](https://img.shields.io/badge/Vite-6.0+-purple.svg)](https://vitejs.dev/)
-[![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
+LunarCV is a research-oriented software pipeline for registering real
+Chandrayaan-2 optical imagery against reference imagery from NASA's Lunar
+Reconnaissance Orbiter (LRO). It combines geographic metadata, image
+normalization, feature matching, geometric outlier rejection, spatial
+distribution checks, sub-pixel refinement, and registration diagnostics.
 
-**LunarCV** is an end-to-end computer vision software pipeline and web platform designed to find **sub-pixel accurate, spatially uniform correspondence points** and compute seamless, continuous geometric registration between multi-modal lunar orbiter imagery:
+The repository contains a Python/FastAPI backend, a command-line registration
+pipeline, a React/Vite visualization console, tests, evaluation metadata, and
+small showcase products. It is a working project baseline, not a claim of
+production-ready lunar georeferencing accuracy.
 
-- **Source Images**: ISRO Chandrayaan-2 optical payloads (**OHRC**, **TMC-2**, **IIRS**)
-- **Reference Images**: NASA **LRO NAC** (Narrow Angle Camera), JAXA **SELENE** (Kaguya)
+## Problem and Motivation
 
-Built for the **Smart India Hackathon (SIH)**, LunarCV overcomes the three core challenges of lunar multi-modal remote sensing:
-1. **Severe Illumination Variation**: Extreme sun azimuth and elevation angle shifts between orbital passes.
-2. **Viewpoint & Non-Linear Pushbroom Distortion**: Geometric distortion and along-track perspective changes across orbital strips.
-3. **Extreme Scale Variation**: Over $6.17\times$ Ground Sampling Distance (GSD) discrepancy ($0.26\,\text{m/px}$ OHRC vs. $1.60\,\text{m/px}$ LRO NAC).
+The same lunar surface can look substantially different across sensors because
+of illumination, viewing geometry, ground sampling distance, and sensor
+format. LunarCV is intended to make those cross-sensor correspondences
+inspectable and reproducible while preserving the provenance of the imagery
+and evaluation protocol.
 
----
+## Current Capabilities
 
-## 🔬 Architecture & Registration Pipeline
+- Load and normalize supported PNG, JPEG, TIFF, and lunar `.img` imagery.
+- Use calibrated OHRC geometry and LRO footprint metadata for a coarse spatial
+  prior in the production script.
+- Match image strips with LightGlue and the bundled RIFT2 implementation.
+- Reject geometric outliers with OpenCV MAGSAC++.
+- Enforce grid-based spatial coverage and refine selected correspondences with
+  local sub-pixel correlation.
+- Estimate affine, similarity, or homography transforms and write registered,
+  overlay, checkerboard, correspondence, and metrics products.
+- Expose upload, registration-job, image-listing, configuration, health, and
+  result-file endpoints through FastAPI.
+- Visualize the pipeline and existing result products in the React frontend.
 
-The entire system operates on **real orbital sensor data** (zero synthetic evaluation data), running a single continuous surface pipeline without piecewise strip cuts or shingle seams:
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Real source and reference imagery] --> B[Metadata and geographic prior]
+    B --> C[Crop and percentile normalization]
+    C --> D[LightGlue plus RIFT2 matching]
+    D --> E[MAGSAC++ outlier rejection]
+    E --> F[Grid spatial filtering]
+    F --> G[Sub-pixel refinement]
+    G --> H[Transform estimation and warp]
+    H --> I[Registered image and diagnostics]
+    I --> J[CLI outputs, API results, and frontend views]
+```
+
+The main implementation lives under `backend/lunarcv`. The FastAPI application
+is under `backend/app`, the authoritative batch entry point is
+`backend/scripts/register_pair.py`, and the browser console is under
+`frontend/src`.
+
+## Repository Layout
 
 ```text
-REAL Chandrayaan-2 OHRC (0.26 m/px)              REAL NASA LRO NAC (1.60 m/px)
-        │                                                     │
-        ▼                                                     ▼
-  [1] Geographic Prior Extraction               [1] Geographic Prior Extraction
-  (Parse calibrated geometry CSV)               (Equirectangular PDS projection)
-        └──────────────────────────────┬──────────────────────┘
-                                       ▼
-                       [2] Overlap ROI Crop & Memory-Mapping
-                       (Zero-copy extraction of common landmark footprint)
-                                       │
-                                       ▼
-                  [3] Robust Normalization & Physical GSD Scaling
-                  (Percentile-stretch uint8; anisotropic GSD scaling: sx=5.9615, sy=6.3846)
-                                       │
-                                       ▼
-                  [4] Dense Feature Matching (Ensemble)
-                  (Full-Scene: LightGlue [GPU] + RIFT2 [Phase Congruency])
-                                       │
-                                       ▼
-                  [5] Global Geometric Verification
-                  (MAGSAC++ / RANSAC filter → Global inlier consensus)
-                                       │
-                                       ▼
-                  [6] Continuous Similarity Transform Estimation
-                  (Closed-form SVD least squares with tight-residual pruning <= 2.2px)
-                  Zero Shear • Aspect Preserved • 99.4% Mutual Overlap
-                                       │
-                                       ▼
-                  [7] Official Deliverables & Evaluation Suite
-                  (Registered Image, 50/50 Overlay, Seamless Checkerboard, 4-Panel Suite,
-                   Sub-Pixel CSV [patch & full frame coords], Metrics JSON: ACCEPT)
+backend/
+  app/                  FastAPI application, routes, schemas, and services
+  lunarcv/              Registration library and bundled RIFT2 code
+  scripts/register_pair.py
+                        Real-data batch registration entry point
+  tests/                Backend-focused tests
+data/
+  metadata/             Evaluation manifest and geographic metadata
+  results/              Small checked-in showcase products
+  sample_pairs/         Small frontend/demo image pair
+  raw/, processed/      Local data locations; ignored by Git
+frontend/               React 19 + Vite visualization console
+tests/                  Legacy top-level tests for modules under src/
+Docs/                   Detailed architecture, setup, and evaluation notes
+examples/               Python usage example
 ```
 
-### Why 4-DOF Similarity Over Unconstrained Affine?
-- **Preservation of Circular Craters**: Unconstrained 6-DOF Affine transforms independently shear $x$ and $y$. When correspondences are clustered along high-contrast crater rims, Affine transforms overfit the 1D edge, producing $>20^\circ$ shear that distorts circular impact craters into skewed diagonal ellipses.
-- **Zero Shear Constraint**: The 4-DOF Similarity transform strictly enforces $s_x \equiv s_y$ and $\text{shear} \equiv 0$, guaranteeing that craters remain permanently circular and physically authentic across orbital observations.
+The untracked top-level `src/` directory contains older standalone helpers and
+is not imported by the backend package. Review it before publishing or folding
+it into the maintained package; it is intentionally not described as part of
+the authoritative pipeline here.
 
----
+## Prerequisites
 
-## 🚀 How to Run
+- Python 3.11 or newer
+- `uv` for the reproducible backend environment, or pip in an equivalent
+  virtual environment
+- Node.js 18 or newer and npm for the frontend
+- Optional GPU support for Torch/LightGlue workloads
+- Real source and reference imagery. Large raw products are not included in
+  Git and must be acquired from their authoritative providers.
 
-### 1. Authoritative CLI Pipeline (Production Core)
+## Installation
 
-The single production registration pipeline processes the calibrated Chandrayaan-2 OHRC swath against NASA LRO NAC, outputting all competition deliverables:
+Install the backend from the repository root:
 
 ```bash
-# Run with default continuous Similarity transform (RTX 4070 GPU accelerated)
-PYTHONPATH=backend python backend/scripts/register_pair.py --model similarity
+cd backend
+uv sync
 ```
 
-#### CLI Flags & Options:
-```bash
-PYTHONPATH=backend python backend/scripts/register_pair.py [OPTIONS]
-
-Options:
-  --model [similarity|affine|homography]
-                        Transform model (default: similarity for aspect-preserving rigid/conformal
-                        surface; affine for 6-DOF global; homography for 8-DOF projective).
-  --reuse-match-cache   Reuse previously computed feature matches for instant execution (<10s).
-  --force-rematch       Force complete re-extraction and matching from scratch (bypasses cache).
-  --n-chunks INTEGER    Number of along-track overlapping chunks (default: 1 for full-scene).
-  --grid-size INTEGER   Checkerboard tile dimension in pixels (default: 45).
-  --output-dir PATH     Output directory for deliverables (default: outputs/submission).
-  --figures-dir PATH    Output directory for diagnostics (default: outputs/figures).
-```
-
-**Example Commands:**
-```bash
-# Instant re-execution reusing cached feature matches:
-PYTHONPATH=backend python backend/scripts/register_pair.py --model similarity --reuse-match-cache
-
-# Force full re-match from scratch:
-PYTHONPATH=backend python backend/scripts/register_pair.py --model similarity --force-rematch
-```
-
----
-
-### 2. Local Full-Stack Development (Web App)
-
-LunarCV provides a modern web interface (React 19 + Vite) backed by an asynchronous REST API (FastAPI):
-
-#### Prerequisites:
-- Python 3.11+ (using `backend/.venv`)
-- Node.js 20+ & npm
-
-#### Setup & Launch:
-```bash
-# 1. Install all dependencies (backend virtualenv + frontend node_modules)
-make install
-
-# 2. Run both Backend API and Frontend UI concurrently:
-make dev
-```
-
-Or run services individually in separate terminals:
+Install frontend dependencies:
 
 ```bash
-# Terminal 1: Backend API (runs at http://localhost:8000)
-make dev-backend
-# Or directly:
-cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Terminal 2: Frontend Web UI (runs at http://localhost:5173)
-make dev-frontend
-# Or directly:
-cd frontend && npm run dev
+npm --prefix frontend install
 ```
 
-- **Interactive UI**: [http://localhost:5173](http://localhost:5173)
-- **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **OpenAPI JSON Spec**: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+The backend dependency lockfile is `backend/uv.lock`. The frontend lockfile is
+`frontend/package-lock.json`.
 
----
+## Configuration
 
-### 3. Docker Deployment (Containerized)
-
-Deploy the entire stack in isolated Docker containers:
+Copy the example environment file when using the API locally:
 
 ```bash
-# Build and start services in background
-docker compose up --build -d
-
-# Check service logs
-docker compose logs -f
-
-# Stop services
-docker compose down
+cp .env.example .env
 ```
 
----
+The supported settings currently include:
 
-### 4. Running the Test Suite
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `BACKEND_CORS_ORIGINS` | Comma-separated browser origins | Local Vite/API origins |
+| `MAX_UPLOAD_SIZE` | Maximum upload size in bytes | `1073741824` |
+| `CLEANUP_AFTER_HOURS` | Result-retention setting | `24` |
+| `VITE_API_URL` | Frontend API base URL | `http://localhost:8000/api/v1` |
 
-Run automated unit and integration tests with `pytest`:
+The backend also has code-level defaults for storage paths under `data/` and
+processing limits in `backend/app/config.py`.
+
+## Run the API
+
+From the repository root:
 
 ```bash
-# Run pytest across all test modules
-PYTHONPATH=backend pytest backend/tests/
-PYTHONPATH=backend/lunarcv/geo:backend pytest tests/
-
-# Or via Makefile:
-make test
+cd backend
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
----
+The interactive API description is available at
+`http://localhost:8000/docs`. The API prefix is `/api/v1`; implemented routes
+include `GET /health`, `POST /upload`, `GET /images`, `POST /register`,
+`GET /jobs/{job_id}`, and `GET /jobs/{job_id}/results`.
 
-## 📊 Benchmark Results & Metrics
+## Run the Frontend
 
-Evaluated against the published benchmark: **Makharia et al. (ISRO SAC + Manipal University Jaipur, IEEE 2024)** on real Chandrayaan-2 OHRC and NASA LRO NAC imagery:
-
-| Metric | Literature Baseline (SuperGlue) | LunarCV Breakthrough (Ours) | Engineering Benefit |
-| :--- | :--- | :--- | :--- |
-| **Transform Surface** | Discontinuous / piecewise | **Continuous 4-DOF Similarity Surface** | **Aspect preserved, zero shear, zero seams** |
-| **Quality Decision** | *Unreported* | **ACCEPT** | **Passes automated SIH QA threshold** |
-| **Reprojection RMSE** | 0.62 px (local tile) | **1.400 px (Global Multi-Modal Fit)** | Honest residual against full orbital pushbroom geometry |
-| **Mutual Overlap Area** | Unreported | **815,454 px (99.4%)** | Maximum common lunar surface coverage |
-| **Crater Circularity** | Distorted under affine | **Strictly Preserved ($\text{Shear} \equiv 0$)** | True physical lunar geology preserved |
-| **Relative Rotation** | Unreported | **16.10°** | Accurately models cross-track orbit inclination |
-| **Execution Time** | ~15–30s | **~7.8s (cached) / 26.6s (from scratch)** | High-throughput GPU execution (RTX 4070) |
-
-> **Evaluation Honesty Note**: Per our evaluation protocol, all reported metrics are computed on real Chandrayaan-2 OHRC (`ch2_ohr_ncp_20210401T2357376656_d_img_d18.img`) and NASA LRO NAC (`M1350459544RE.IMG`) mission products. Zero synthetic or fabricated points are used.
-
----
-
-## 📦 Generated Deliverables & Stage Products
-
-All stage outputs and submission deliverables from `backend/scripts/register_pair.py` are saved to `outputs/submission/` and `outputs/figures/`:
-
-### 1. Final Deliverables (`outputs/submission/` & `outputs/figures/`)
-| Product | File Path | Description |
-| :--- | :--- | :--- |
-| **Registered Image** | `outputs/submission/registered.png` | Warped Chandrayaan-2 OHRC aligned into NASA LRO NAC reference coordinates (cleanly framed on mutual surface). |
-| **50/50 Overlay** | `outputs/submission/overlay.png` | Alpha-blended overlay confirming crater rim and shadow wall alignment with zero double edges. |
-| **Seamless Checker** | `outputs/submission/checkerboard.png` | $45\,\text{px}$ alternating checkerboard demonstrating continuous crater features across tiles. |
-| **Professional Suite** | `outputs/submission/professional_suite.png` | 4-panel publication visual verification suite (Checkerboard, Blend, Canny Contours, False-Color). |
-| **Correspondence CSV** | `outputs/submission/correspondence_points.csv` | Full correspondence table (`point_id, ohrc_patch_x/y, ohrc_full_x/y, lro_crop_x/y, lro_full_x/y, fit_residual_px`). |
-| **Metrics JSON** | `outputs/submission/metrics.json` | Complete evaluation report (`quality_decision: ACCEPT`, `rmse: 1.009 px`, overlap, timing). |
-| **Diagnostic Plot** | `outputs/figures/registration_product_diagnostic.png` | Diagnostic dashboard with coverage masks, error histograms, and spatial grids. |
-| **Match Vectors** | `outputs/figures/matches.png` | Side-by-side match visualization with connecting correspondence lines. |
-
-### 2. Per-Stage Intermediate Figures (`outputs/figures/`)
-| Stage | File Path | Description |
-| :--- | :--- | :--- |
-| **Stage 2: Raw Extraction** | `outputs/figures/stage2_ohrc_raw.png`<br>`outputs/figures/stage2_lro_raw.png` | Raw memory-mapped cropped sensor arrays from PDS mission files. |
-| **Stage 3: Normalization & Scale** | `outputs/figures/stage3_ohrc_norm.png`<br>`outputs/figures/stage3_lro_norm.png`<br>`outputs/figures/stage3_ohrc_scaled.png`<br>`outputs/figures/stage3_pair_preprocessed.png` | Percentile-stretched uint8 products, GSD-scaled canvas ($s_x=5.9615, s_y=6.3846$), and side-by-side comparison. |
-| **Stage 4: Feature Matching** | `outputs/figures/stage4_raw_matches.png` | Dense raw candidate correspondences between OHRC and LRO NAC before outlier rejection. |
-| **Stage 5: Verification & Inliers** | `outputs/figures/stage5_inlier_matches.png` | Verified geometric inlier correspondences after global consensus filtering. |
-| **Stage 6: Surface Warping** | `outputs/figures/stage6_registered_full_canvas.png` | Full-canvas uncropped continuous Similarity transform warp. |
-| **Stage 7: Deliverable Suite** | `outputs/figures/stage7_registered.png`<br>`outputs/figures/stage7_overlay.png`<br>`outputs/figures/stage7_checkerboard.png`<br>`outputs/figures/stage7_professional_suite.png` | Publication-ready visual suite mirroring final competition submission assets. |
-
----
-
-## 📁 Project Structure
-
-```
-LunarCV/
-├── backend/
-│   ├── app/                         # FastAPI application
-│   │   ├── api/routes/              # REST endpoints (register, upload, jobs)
-│   │   ├── schemas/                 # Pydantic data schemas
-│   │   ├── services/                # Registration & job services
-│   │   ├── config.py                # Server settings
-│   │   └── main.py                  # FastAPI application entrypoint
-│   │
-│   ├── lunarcv/                     # Core computer vision library
-│   │   ├── geo/                     # Geographic prior & coordinate mapping
-│   │   ├── io/                      # Memory-mapped large raster I/O
-│   │   ├── matching/                # LightGlue, RIFT2, Ensemble matchers
-│   │   ├── preprocessing/           # Normalization & percentile stretching
-│   │   ├── registration/            # MAGSAC++, Similarity/Affine transforms, subpixel
-│   │   ├── evaluation/              # Spatial uniformity & benchmark metrics
-│   │   └── config.py                # Central dataset paths and constants
-│   │
-│   ├── scripts/
-│   │   └── register_pair.py         # Authoritative end-to-end CLI pipeline
-│   │
-│   ├── tests/                       # Pytest test suite
-│   ├── pyproject.toml               # Python package configuration
-│   └── uv.lock                      # Locked dependency versions
-│
-├── frontend/                        # React 19 + Vite frontend
-│   ├── src/
-│   │   ├── api/                     # REST API client
-│   │   ├── components/              # Interactive UI components
-│   │   └── index.css                # Design system & styles
-│   ├── package.json                 # Node.js dependencies
-│   └── vite.config.js               # Vite bundler configuration
-│
-├── data/
-│   ├── raw/                         # Raw mission products (OHRC .img, LRO .IMG)
-│   ├── processed/                   # Processed sensor crops & intermediates
-│   └── metadata/                    # Geometry files & evaluation manifest
-│
-├── outputs/
-│   ├── figures/                     # Diagnostic plots and match figures
-│   └── submission/                  # Official competition deliverables
-│
-├── Docs/                            # In-depth architectural documentation
-├── docker-compose.yml               # Multi-container orchestration
-├── Makefile                         # Unified development task runner
-└── README.md                        # Project documentation (this file)
-```
-
----
-
-## 🛠️ Makefile Commands
+In another terminal:
 
 ```bash
-make install          # Install backend (uv) and frontend (npm) dependencies
-make dev              # Run backend API and frontend dev servers concurrently
-make dev-backend      # Run FastAPI backend with hot-reload
-make dev-frontend     # Run Vite frontend dev server
-make test             # Run pytest test suite
-make lint             # Run Ruff linter
-make format           # Format code with Ruff
-make clean            # Remove caches and temporary files
-make docker-build     # Build Docker containers
-make docker-up        # Start Docker containers
-make docker-down      # Stop Docker containers
+npm --prefix frontend run dev
 ```
 
----
+The Vite server normally uses `http://localhost:5173`. Set `VITE_API_URL` if
+the backend is hosted elsewhere.
 
-## 🌐 REST API Usage
+For a production bundle:
 
-### 1. Upload Images
 ```bash
-curl -X POST "http://localhost:8000/api/v1/upload" \
-  -F "file=@data/raw/tmc2/baseline/data/calibrated/20210401/ch2_ohr_ncp_20210401T2357376656_d_img_d18.img"
+npm --prefix frontend run build
 ```
 
-### 2. Start Registration Job
+## Run a Registration
+
+The production batch script expects the real OHRC and LRO files and the
+calibrated geometry CSV configured by `backend/lunarcv/config.py`:
+
 ```bash
-curl -X POST "http://localhost:8000/api/v1/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source_image_id": "<SOURCE_UUID>",
-    "reference_image_id": "<REFERENCE_UUID>",
-    "matcher": "lightglue",
-    "transform_model": "similarity"
-  }'
+cd backend
+uv run python scripts/register_pair.py
 ```
 
-### 3. Check Job Status
+The script writes products to ignored local output directories, including a
+registered image, overlay, checkerboard, correspondence CSV, metrics JSON,
+and diagnostic figures. It may require substantial memory and compute for
+full-resolution imagery. The small checked-in showcase under
+`data/results/showcase_baseline_run/` is intended for inspection, not as a
+representative production benchmark.
+
+## Evaluation and Results
+
+The checked-in manifest is at
+`data/metadata/evaluation_manifest.json`. It requires held-out accuracy,
+independent control-point provenance, and spatial-uniformity reporting; the
+current pair explicitly records that independent ground truth is unavailable.
+
+The checked-in showcase metrics are measured outputs from one baseline run:
+
+| Metric | Value |
+| --- | ---: |
+| Candidate matches | 107 |
+| Inlier matches | 6 |
+| Inlier ratio | 0.0561 |
+| Forward RMSE | 2.104 px |
+| Backward RMSE | 2.258 px |
+| Spatial-uniformity CV | 1.856 |
+| Overlap | 82.40% |
+| Execution time | 4.04 s |
+| Quality decision | `REJECT (RMSE too high)` |
+
+These are fit diagnostics, not independently validated accuracy claims. No
+sub-pixel accuracy claim is made until independent real-image control points
+are available. Published benchmark figures referenced by the project are
+context only; they are not results produced by this repository.
+
+## Tests and Verification
+
+Backend tests can be run from the backend directory:
+
 ```bash
-curl "http://localhost:8000/api/v1/jobs/<JOB_ID>"
+cd backend
+uv run pytest
 ```
 
-### 4. Download Results
+The frontend build and lint commands are:
+
 ```bash
-curl "http://localhost:8000/api/v1/jobs/<JOB_ID>/results"
+npm --prefix frontend run build
+npm --prefix frontend run lint
 ```
 
----
+The legacy top-level tests are not part of the backend `pyproject.toml` test
+configuration. They currently do not collect because they import standalone
+`geo_prior` and `metadata` modules that are absent from the untracked `src/`
+directory; treat this layout as legacy until it is intentionally reconciled.
 
-## 🔧 Technical Stack
+## Data, Licensing, and Publication Notes
 
-- **Computer Vision**: OpenCV, LightGlue (SuperPoint + Transformer), RIFT2 (Phase Congruency), SciPy, NumPy
-- **Backend**: Python 3.11+, FastAPI, Uvicorn, Pydantic v2
-- **Frontend**: React 19, Vite, Tailwind CSS v4, Lucide Icons
-- **Packaging & DevOps**: UV, Docker, Docker Compose, GNU Make
-- **Data Standards**: PDS3/PDS4, Equirectangular Lunar Map Projections
+Do not commit raw mission imagery, local virtual environments, model caches, or
+generated output directories. Check the redistribution terms for every
+mission product, the LRO/SELENE source, the bundled RIFT2 code, LightGlue,
+the benchmark paper, and all frontend assets before making a public release.
+The repository currently has no root `LICENSE` file, so no license is implied
+for the project. Choose and add one only after confirming the rights holder and
+the licenses of redistributed components.
 
----
+## Limitations and Next Steps
 
-## 📝 License
+- Independent ground truth and cross-sensor control-point validation are still
+  pending for the evaluation pair.
+- The checked-in showcase is rejected by its own quality gate.
+- Full-resolution `.img` workflows depend on local data acquisition and can be
+  resource intensive.
+- The API currently runs registration work through the application service;
+  production deployment needs stronger job isolation, authentication, and
+  resource controls.
+- The standalone top-level `src/` helpers and legacy tests need an explicit
+  maintenance decision.
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+Planned work is documented in `Docs/03_project_goals_and_submission.md` and
+`Docs/evaluation_protocol.md`, with emphasis on real-data validation,
+independent control points, reproducible benchmarks, and better job handling.
+
+## Acknowledgements
+
+The project builds on OpenCV, PyTorch, LightGlue, the RIFT2 implementation
+bundled in this repository, FastAPI, React, and Vite. See the dependency
+manifests and `Docs/02_key_findings_and_references.md` for source-specific
+references.

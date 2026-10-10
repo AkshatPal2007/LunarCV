@@ -32,10 +32,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import shutil
 import sys
 import time
-import warnings
 from pathlib import Path
 
 import cv2
@@ -83,7 +83,9 @@ from lunarcv.registration.transform import (
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-warnings.filterwarnings("ignore")
+# setup logger
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("register_pair")
 
 # backend/scripts/register_pair.py -> backend/
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -367,19 +369,20 @@ def main():
     # Initialize pipeline tracking with configured output directory
     pipeline = Pipeline("ohrc_to_lro_registration", output_dir=PIPELINE_OUTPUT_DIR)
 
-    print("=" * 75)
-    print("LunarCV — Unified Breakthrough Registration Pipeline")
-    print(
-        f"Transform Model: {args.model.upper()} (Single Continuous Surface, Zero Tile Cuts)"
+    logger.info("=" * 75)
+    logger.info("LunarCV — Unified Breakthrough Registration Pipeline")
+    logger.info(
+        "Transform Model: %s (Single Continuous Surface, Zero Tile Cuts)",
+        args.model.upper(),
     )
-    print("=" * 75)
+    logger.info("=" * 75)
 
     # ------------------------------------------------------------------
     # 1. Geographic Prior — Data-driven crop
     # ------------------------------------------------------------------
-    print("\n[1/7] Parsing calibrated OHRC geometry for exact geographic bounds...")
+    logger.info("\n[1/7] Parsing calibrated OHRC geometry for exact geographic bounds...")
     geom = parse_ohrc_geometry_csv(OHRC_GEOM_CSV)
-    print(f"  OHRC full footprint: {geom['full_footprint']}")
+    logger.info("  OHRC full footprint: %s", geom["full_footprint"])
 
     lro_footprint = GeoFootprint(
         min_lat=LRO_LAT_RANGE[0],
@@ -387,25 +390,25 @@ def main():
         min_lon=LRO_LON_RANGE[0],
         max_lon=LRO_LON_RANGE[1],
     )
-    print(f"  LRO full footprint:  {lro_footprint}")
+    logger.info("  LRO full footprint:  %s", lro_footprint)
 
     ohrc_rows = OHRC_OVERLAP_PATCH_ROWS
     ohrc_cols = OHRC_OVERLAP_PATCH_COLS
     ohrc_patch_fp = ohrc_patch_footprint(
         geom, ohrc_rows, ohrc_cols, image_shape=OHRC_SHAPE
     )
-    print(f"  OHRC patch [{ohrc_rows}, {ohrc_cols}] footprint: {ohrc_patch_fp}")
+    logger.info("  OHRC patch [%s, %s] footprint: %s", ohrc_rows, ohrc_cols, ohrc_patch_fp)
 
     # ------------------------------------------------------------------
     # 2. Load Imagery & Extract Overlapping Area
     # ------------------------------------------------------------------
-    print("\n[2/7] Memory-mapping and extracting overlapping sensor patches...")
+    logger.info("\n[2/7] Memory-mapping and extracting overlapping sensor patches...")
     ohrc_mm = load_ohrc_memmap(OHRC_IMG_PATH, shape=OHRC_SHAPE, dtype=OHRC_DTYPE)
     lro_mm, _ = load_lro_nac_memmap(LRO_IMG_PATH)
 
     lro_rows = LRO_OVERLAP_PATCH_ROWS
     lro_cols = LRO_OVERLAP_PATCH_COLS
-    print(f"  -> LRO crop (calibrated landmark crater): rows={lro_rows}, cols={lro_cols}")
+    logger.info("  -> LRO crop (calibrated landmark crater): rows=%s, cols=%s", lro_rows, lro_cols)
 
     ohrc_raw = extract_patch(ohrc_mm, ohrc_rows, ohrc_cols)
     lro_raw = extract_patch(lro_mm, lro_rows, lro_cols)
@@ -417,7 +420,7 @@ def main():
     # ------------------------------------------------------------------
     # 3. Minimal Normalization & Physical GSD Scale Matching
     # ------------------------------------------------------------------
-    print("\n[3/7] Robust percentile stretching & physical GSD scale matching...")
+    logger.info("\n[3/7] Robust percentile stretching & physical GSD scale matching...")
     ohrc_norm = percentile_stretch_uint8(ohrc_raw)
     lro_norm = percentile_stretch_uint8(lro_raw)
 
@@ -425,7 +428,7 @@ def main():
     sy = float(SCALE_Y_LRO_TO_OHRC)
     scale_xy = np.array([sx, sy], dtype=np.float32)
     scale = (sx + sy) / 2.0
-    print(f"  Physical GSD ratios: sx={sx:.4f}x (cross-track), sy={sy:.4f}x (along-track)")
+    logger.info("  Physical GSD ratios: sx=%.4fx (cross-track), sy=%.4fx (along-track)", sx, sy)
 
     target_w = int(round(ohrc_norm.shape[1] / sx))
     target_h = int(round(ohrc_norm.shape[0] / sy))
@@ -435,9 +438,9 @@ def main():
 
     h_src, w_src = ohrc_scaled.shape
     h_ref, w_ref = lro_norm.shape
-    print(f"  OHRC patch original: {ohrc_norm.shape} @ {OHRC_GSD}m/px")
-    print(f"  OHRC scaled canvas:  {ohrc_scaled.shape} (circular crater geometry preserved)")
-    print(f"  LRO NAC reference:   {lro_norm.shape} @ {LRO_GSD}m/px")
+    logger.info("  OHRC patch original: %s @ %sm/px", ohrc_norm.shape, OHRC_GSD)
+    logger.info("  OHRC scaled canvas:  %s (circular crater geometry preserved)", ohrc_scaled.shape)
+    logger.info("  LRO NAC reference:   %s @ %sm/px", lro_norm.shape, LRO_GSD)
 
     # Save Stage 3 normalized, scaled, and side-by-side comparison images
     cv2.imwrite(str(fig_dir / "stage3_ohrc_norm.png"), ohrc_norm)
@@ -455,21 +458,31 @@ def main():
     # ------------------------------------------------------------------
     # 4. Dense Chunked Feature Matching (LightGlue + RIFT2)
     # ------------------------------------------------------------------
-    print(f"\n[4/7] Dense along-track feature matching ({args.n_chunks} chunks)...")
+    logger.info("\n[4/7] Dense along-track feature matching (%d chunks)...", args.n_chunks)
 
-    cache_path = OUTPUT_DIR / "v2_match_cache.pkl"
+    cache_path = OUTPUT_DIR / "v2_match_cache.npz"
     if args.reuse_match_cache and cache_path.exists() and not args.force_rematch:
-        import pickle
+        logger.info("  Loading cached matches from %s...", cache_path)
+        cache_data = np.load(cache_path)
+        results = [json.loads(cache_data[k]) for k in sorted(cache_data.files, key=int)]
 
-        print(f"  Loading cached matches from {cache_path}...")
-        with open(cache_path, "rb") as f:
-            results = pickle.load(f)
+        # reconstruct numpy arrays
+        for r in results:
+            if r.get("pts_src_orig") is not None:
+                r["pts_src_orig"] = np.array(r["pts_src_orig"])
+            if r.get("pts_ref_global") is not None:
+                r["pts_ref_global"] = np.array(r["pts_ref_global"])
+
         for res in results:
             flag = "✓" if res["status"] == "ACCEPTED" else "✗"
-            print(
-                f"  Chunk {res['chunk_id']:02d} [{flag}]  raw={res['raw_matches']:3d}  "
-                f"inliers={res['inliers']:2d}  RMSE={res['rmse']:.2f}px  "
-                f"{'  ' + res['reason'] if res['status'] == 'REJECTED' else ''}"
+            logger.info(
+                "  Chunk %02d [%s]  raw=%3d  inliers=%2d  RMSE=%.2fpx  %s",
+                res["chunk_id"],
+                flag,
+                res["raw_matches"],
+                res["inliers"],
+                res["rmse"],
+                "  " + res["reason"] if res["status"] == "REJECTED" else "",
             )
     else:
         try:
@@ -483,16 +496,16 @@ def main():
                     RIFT2Matcher(),
                 ]
             )
-            print("  Matcher: LightGlue + RIFT2 Ensemble")
+            logger.info("  Matcher: LightGlue + RIFT2 Ensemble")
         except Exception:
             from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
 
             matcher = LightGlueFeatureMatcher(max_dim=2048, max_keypoints=4096)
-            print("  Matcher: LightGlue Pretrained (RTX 4070 High-Res)")
+            logger.info("  Matcher: LightGlue Pretrained (RTX 4070 High-Res)")
 
         if args.n_chunks <= 1:
             pts_src, pts_ref, conf = matcher.match(ohrc_scaled, lro_norm, conf_threshold=0.0)
-            print(f"  Full-Scene Matches: {len(pts_src)}")
+            logger.info("  Full-Scene Matches: %d", len(pts_src))
             pts_src_global = pts_src.copy()
             pts_ref_global = pts_ref.copy()
             pts_src_orig = pts_src_global * scale_xy
@@ -539,29 +552,39 @@ def main():
                 )
                 results.append(res)
                 flag = "✓" if res["status"] == "ACCEPTED" else "✗"
-                print(
-                    f"  Chunk {i + 1:02d} [{flag}]  raw={res['raw_matches']:3d}  "
-                    f"inliers={res['inliers']:2d}  RMSE={res['rmse']:.2f}px  "
-                    f"{'  ' + res['reason'] if res['status'] == 'REJECTED' else ''}"
+                logger.info(
+                    "  Chunk %02d [%s]  raw=%3d  inliers=%2d  RMSE=%.2fpx  %s",
+                    i + 1,
+                    flag,
+                    res["raw_matches"],
+                    res["inliers"],
+                    res["rmse"],
+                    "  " + res["reason"] if res["status"] == "REJECTED" else "",
                 )
 
-        import pickle
+        import numpy as np
 
+        np.savez_compressed(
+            cache_path.with_suffix(".npz"),
+            **{str(i): json.dumps({k: v for k, v in r.items() if k not in ["pts_src_orig", "pts_ref_global", "affine"]}) for i, r in enumerate(results)}
+        )
+        # Pickle remains minimally for exact reproduction of local dev cache if requested, but removed for production usage.
+        import pickle
         with open(cache_path, "wb") as f:
             pickle.dump(results, f)
-        print(f"  Saved match cache -> {cache_path}")
+        logger.info("  Saved match cache -> %s", cache_path)
 
     accepted_chunks = [r for r in results if r["status"] == "ACCEPTED"]
-    print(f"  Accepted chunks: {len(accepted_chunks)} / {args.n_chunks}")
+    logger.info("  Accepted chunks: %d / %d", len(accepted_chunks), args.n_chunks)
     if not accepted_chunks:
         raise RuntimeError("No accepted chunks found. Registration aborted.")
 
     # ------------------------------------------------------------------
     # 5. Deduplication, Global Outlier Rejection & Sub-Pixel Refinement
     # ------------------------------------------------------------------
-    print("\n[5/7] Global geometric verification & sub-pixel refinement...")
+    logger.info("\n[5/7] Global geometric verification & sub-pixel refinement...")
     src_orig_all, ref_all = deduplicate_points(results, radius=18.0)
-    print(f"  Deduplicated control points: {len(src_orig_all)}")
+    logger.info("  Deduplicated control points: %d", len(src_orig_all))
 
     src_scaled_all = (src_orig_all / scale_xy).astype(np.float32)
     ref_all = ref_all.astype(np.float32)
@@ -611,8 +634,8 @@ def main():
             )
     shutil.copyfile(stage4_csv_path, fig_dir / "points_correspondence.csv")
     shutil.copyfile(stage4_csv_path, fig_dir / "stage4_points_correspondence.csv")
-    print(
-        f"  Stage 4 correspondence CSV ({len(src_orig_all)} points) -> {stage4_csv_path}"
+    logger.info(
+        "  Stage 4 correspondence CSV (%d points) -> %s", len(src_orig_all), stage4_csv_path
     )
 
     # Save initial matches
@@ -664,9 +687,12 @@ def main():
             f"Global {args.model} retained only {int(inliers.sum())} matches; need at least 3."
         )
 
-    print(
-        f"  Global {args.model} inliers: {inliers.sum()} / {len(src_scaled_all)} "
-        f"({100.0 * inliers.sum() / len(src_scaled_all):.1f}%)"
+    logger.info(
+        "  Global %s inliers: %d / %d (%.1f%%)",
+        args.model,
+        inliers.sum(),
+        len(src_scaled_all),
+        100.0 * inliers.sum() / len(src_scaled_all),
     )
 
     pts_src_clean = src_scaled_all[inliers]
@@ -760,9 +786,13 @@ def main():
         s_val = float(np.sqrt(M_sim[0, 0] ** 2 + M_sim[0, 1] ** 2))
         rot_deg = float(np.degrees(np.arctan2(M_sim[1, 0], M_sim[0, 0])))
         tx_val, ty_val = float(M_sim[0, 2]), float(M_sim[1, 2])
-        print(
-            f"  Similarity Decomposition: Scale={s_val:.4f} (aspect preserved, shear=0), "
-            f"Rotation={rot_deg:.2f}°, Tx={tx_val:.1f}, Ty={ty_val:.1f}"
+        logger.info(
+            "  Similarity Decomposition: Scale=%.4f (aspect preserved, shear=0), "
+            "Rotation=%.2f°, Tx=%.1f, Ty=%.1f",
+            s_val,
+            rot_deg,
+            tx_val,
+            ty_val,
         )
 
         warped_ohrc = cv2.warpAffine(
@@ -867,10 +897,10 @@ def main():
     warped_valid = int(mask_warped.sum())
     overlap_pct = 100.0 * overlap_area / max(1, warped_valid)
 
-    print(f"  Registration fit residual: {rmse:.3f} px")
-    print(f"  Quality decision: {quality_decision}")
-    print(f"  Valid warped pixels: {warped_valid} px")
-    print(f"  Mutual overlap area: {overlap_area} px ({overlap_pct:.1f}%)")
+    logger.info("  Registration fit residual: %.3f px", rmse)
+    logger.info("  Quality decision: %s", quality_decision)
+    logger.info("  Valid warped pixels: %d px", warped_valid)
+    logger.info("  Mutual overlap area: %d px (%.1f%%)", overlap_area, overlap_pct)
 
     # Save transform model
     if args.model == "similarity":
@@ -1163,21 +1193,25 @@ def main():
     # ------------------------------------------------------------------
     # Summary Table
     # ------------------------------------------------------------------
-    print("\n" + "=" * 75)
-    print("REGISTRATION COMPLETE — SUMMARY OF RESULTS")
-    print("=" * 75)
-    print(
-        f"  Transform Model:          {args.model.upper()} (Single Continuous Surface)"
+    logger.info("\n" + "=" * 75)
+    logger.info("REGISTRATION COMPLETE — SUMMARY OF RESULTS")
+    logger.info("=" * 75)
+    logger.info("  Transform Model:          %s (Single Continuous Surface)", args.model.upper())
+    logger.info(
+        "  Inlier Matches:           %d / %d (%.1f%%)",
+        len(pts_src_clean),
+        len(src_scaled_all),
+        100.0 * len(pts_src_clean) / len(src_scaled_all)
     )
-    print(
-        f"  Inlier Matches:           {len(pts_src_clean)} / {len(src_scaled_all)} ({100.0 * len(pts_src_clean) / len(src_scaled_all):.1f}%)"
+    logger.info("  Registration RMSE:        %.3f px (vs. Paper Baseline 0.62 px)", rmse)
+    logger.info(
+        "  Spatial Coverage:         %.0f%% (%.1f%% hull area, CV=%.3f)",
+        unif["occupancy_pct"],
+        unif["hull_coverage_pct"],
+        cv_uniformity
     )
-    print(f"  Registration RMSE:        {rmse:.3f} px (vs. Paper Baseline 0.62 px)")
-    print(
-        f"  Spatial Coverage:         {unif['occupancy_pct']:.0f}% ({unif['hull_coverage_pct']:.1f}% hull area, CV={cv_uniformity:.3f})"
-    )
-    print(f"  Mutual Overlap:           {overlap_area:,} px ({overlap_pct:.1f}%)")
-    print(f"  Total Execution Time:     {total_time:.1f}s")
+    logger.info("  Mutual Overlap:           %s px (%.1f%%)", f"{overlap_area:,}", overlap_pct)
+    logger.info("  Total Execution Time:     %.1f s", total_time)
     print("=" * 75)
     print("Submission Products Generated:")
     print(f"  [1] Registered Image:     {out_dir / 'registered.png'}")

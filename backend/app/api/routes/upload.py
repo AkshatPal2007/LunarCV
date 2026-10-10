@@ -2,8 +2,9 @@
 Image upload endpoints.
 """
 
+import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -11,6 +12,8 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from app.config import settings
 from app.schemas.registration import UploadResponse
 from app.services.validation_service import validate_uploaded_file
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -35,17 +38,18 @@ async def upload_image(file: UploadFile = File(...)):
     file_id = str(uuid.uuid4())
     save_path = settings.UPLOAD_DIR / f"{file_id}{file_ext}"
 
-    # Save file
-    content = await file.read()
-
-    if len(content) > settings.MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB",
-        )
-
+    # Stream file to disk while enforcing max size
+    bytes_read = 0
     with open(save_path, "wb") as f:
-        f.write(content)
+        while chunk := await file.read(1024 * 1024):  # 1MB chunks
+            bytes_read += len(chunk)
+            if bytes_read > settings.MAX_UPLOAD_SIZE:
+                save_path.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB",
+                )
+            f.write(chunk)
 
     # Validate uploaded file
     validation = validate_uploaded_file(save_path, max_size_mb=1024)
@@ -55,11 +59,11 @@ async def upload_image(file: UploadFile = File(...)):
 
     # Log warnings if any
     for warning in validation.get("warnings", []):
-        print(f"[WARNING] Upload validation: {warning}")
+        logger.warning("[WARNING] Upload validation: %s", warning)
 
     return UploadResponse(
         file_id=file_id,
         filename=file.filename,
-        size=len(content),
-        uploaded_at=datetime.utcnow().isoformat(),
+        size=bytes_read,
+        uploaded_at=datetime.now(UTC).isoformat(),
     )

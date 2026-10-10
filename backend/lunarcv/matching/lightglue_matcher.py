@@ -7,6 +7,8 @@ Maintains an identical interface to LoFTRMatcher and RIFT2Matcher.
 
 from __future__ import annotations
 
+import logging
+
 import cv2
 import numpy as np
 import torch
@@ -14,6 +16,8 @@ from lightglue import LightGlue, SuperPoint
 from lightglue.utils import rbd
 
 from lunarcv.matching.matcher import Matcher
+
+logger = logging.getLogger(__name__)
 
 
 class LightGlueFeatureMatcher(Matcher):
@@ -31,17 +35,15 @@ class LightGlueFeatureMatcher(Matcher):
         self.max_dim = max_dim
         self.max_keypoints = max_keypoints
 
-        print(f"[LightGlue] Loading SuperPoint extractor on {self.device}...")
+        logger.info("Loading SuperPoint extractor on %s", self.device)
         self.extractor = (
             SuperPoint(max_num_keypoints=self.max_keypoints).to(self.device).eval()
         )
 
-        print("[LightGlue] Loading LightGlueMatcher(superpoint)...")
+        logger.info("Loading LightGlueMatcher(superpoint)")
         self.matcher = LightGlue(features="superpoint").to(self.device).eval()
 
-        print(
-            f"[LightGlue] Ready | max_dim={self.max_dim} | max_keypoints={max_keypoints}"
-        )
+        logger.info("Ready | max_dim=%d | max_keypoints=%d", self.max_dim, max_keypoints)
 
     @torch.no_grad()
     def match(
@@ -79,7 +81,7 @@ class LightGlueFeatureMatcher(Matcher):
         scores = matches_dict.get("matching_scores", None)
 
         if len(matches) == 0:
-            print("[LightGlue] No matches found")
+            logger.warning("No matches found")
             empty = np.empty((0, 2), dtype=np.float32)
             return empty, empty, np.empty((0,), dtype=np.float32)
 
@@ -102,7 +104,7 @@ class LightGlueFeatureMatcher(Matcher):
         mkpts_src = pts_src * scale_src
         mkpts_ref = pts_ref * scale_ref
 
-        print(f"[LightGlue] Matches: {len(conf)}")
+        logger.info("Matches: %d", len(conf))
         return mkpts_src, mkpts_ref, conf
 
     def _resize_for_matcher(self, img: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

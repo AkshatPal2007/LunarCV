@@ -17,8 +17,12 @@ All functions operate on (x, y) float32 Nx2 arrays in image pixel coordinates.
 
 from __future__ import annotations
 
+import logging
+
 import cv2
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Grid Occupancy
@@ -242,14 +246,18 @@ def spatial_uniformity_report(
     hull_pct = convex_hull_coverage(pts_src, image_h, image_w)
     min_sep = min_pairwise_separation(pts_src)
 
-    print(f"--- Spatial Uniformity [{label}] ---")
-    print(
-        f"  Grid ({n_rows}x{n_cols}): {occ['occupied_cells']}/{occ['total_cells']} cells occupied "
-        f"({occ['occupancy_pct']:.1f}%)"
+    logger.info("--- Spatial Uniformity [%s] ---", label)
+    logger.info(
+        "  Grid (%dx%d): %d/%d cells occupied (%.1f%%)",
+        n_rows,
+        n_cols,
+        occ["occupied_cells"],
+        occ["total_cells"],
+        occ["occupancy_pct"],
     )
-    print(f"  Convex Hull Coverage : {hull_pct:.1f}% of source image area")
-    print(f"  Min Point Separation : {min_sep:.1f} px")
-    print(f"  Grid cell counts:\n{occ['grid_counts']}")
+    logger.info("  Convex Hull Coverage : %.1f%% of source image area", hull_pct)
+    logger.info("  Min Point Separation : %.1f px", min_sep)
+    logger.info("  Grid cell counts:\n%s", occ["grid_counts"])
 
     return {
         "occupancy_pct": occ["occupancy_pct"],

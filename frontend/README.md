@@ -1,48 +1,39 @@
-# Chanda (LunarCV - Chandrayaan-2 Optical Registration Engine)
+# LunarCV Frontend
 
-A high-performance interactive web application and visualization console for optical registration, feature extraction, multi-spectral scanning, and sub-pixel alignment inspired by Chandrayaan-2 (TMC-2 / OHRC) imagery.
+React/Vite visualization console for the LunarCV image-registration backend.
+It presents the pipeline, geographic context, correspondence points, and
+available registration products through a browser interface.
 
-## 🚀 Quick Start for Contributors
+## Requirements
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (version 18+ recommended)
-- [npm](https://www.npmjs.com/) (bundled with Node)
+- Node.js 18 or newer
+- npm
+- A running LunarCV API when using live backend data
 
-### Installation
+## Install and Run
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Sasha-Mx/Chanda.git
-   cd Chanda
-   ```
+From the repository root:
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+npm --prefix frontend install
+npm --prefix frontend run dev
+```
 
-3. Start the local development server:
-   ```bash
-   npm run dev
-   ```
-   Open your browser at the local URL shown in terminal (usually `http://localhost:5173`).
+Vite normally serves the frontend at `http://localhost:5173`. The API base URL
+is configured with `VITE_API_URL`; the local default is
+`http://localhost:8000/api/v1`.
 
----
+## Available Scripts
 
-## 🛠️ Available Scripts
+```bash
+npm --prefix frontend run dev
+npm --prefix frontend run build
+npm --prefix frontend run preview
+npm --prefix frontend run lint
+```
 
-- **`npm run dev`**: Starts the Vite development server with Hot Module Replacement (HMR).
-- **`npm run build`**: Compiles and bundles production assets into `dist/`.
-- **`npm run preview`**: Previews the production build locally.
-- **`npm run lint`**: Lints the codebase with Oxlint.
+## Stack
 
----
-
-## 📦 Tech Stack
-
-- **Framework**: React 19
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS v4
-- **Animations & Interactivity**: Framer Motion
-- **Icons**: Lucide React
-- **Linter**: Oxlint
+The frontend uses React 19, Vite, Framer Motion, Lucide React, Tailwind CSS
+(via the Vite plugin), and Oxlint. The package is private and is not published
+as a standalone npm package.

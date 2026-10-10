@@ -15,12 +15,17 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "LunarCV API"
     VERSION: str = "0.1.0"
 
-    # CORS - Allow all origins for demo
-    BACKEND_CORS_ORIGINS: list[str] = ["*"]
+    # CORS - restrict in production, open for local dev
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",  # Backend itself
+        "http://127.0.0.1:8000",
+    ]
 
     # File Upload
     MAX_UPLOAD_SIZE: int = 1024 * 1024 * 1024  # 1GB
-    ALLOWED_EXTENSIONS: set = {".img", ".tif", ".tiff", ".png", ".jpg", ".jpeg"}
+    ALLOWED_EXTENSIONS: set[str] = {".img", ".tif", ".tiff", ".png", ".jpg", ".jpeg"}
 
     # Storage paths
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
@@ -48,7 +53,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Ensure directories exist
+# Ensure directories exist lazily in app setup, but we'll leave them here for now
 settings.RAW_DIR.mkdir(parents=True, exist_ok=True)
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 settings.RESULTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -10,8 +10,12 @@ Usage:
 
 from __future__ import annotations
 
+import logging
+
 import cv2
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def magsac_filter(
@@ -52,7 +56,7 @@ def magsac_filter(
     mask            : ndarray (N,) bool — full inlier mask over input
     """
     if len(mkpts_src) < 4:
-        print(f"[MAGSAC++] Only {len(mkpts_src)} matches — need ≥4. Returning empty.")
+        logger.warning("[MAGSAC++] Only %d matches — need ≥4. Returning empty.", len(mkpts_src))
         empty = np.empty((0, 2), dtype=np.float32)
         return empty, empty, None, None, np.zeros(len(mkpts_src), dtype=bool)
 
@@ -97,7 +101,7 @@ def magsac_filter(
         )
 
     if raw_mask is None:
-        print("[MAGSAC++] No valid model found — returning empty.")
+        logger.warning("[MAGSAC++] No valid model found — returning empty.")
         empty = np.empty((0, 2), dtype=np.float32)
         return empty, empty, None, None, np.zeros(len(mkpts_src), dtype=bool)
 
@@ -105,9 +109,12 @@ def magsac_filter(
     n_inliers = mask.sum()
     inlier_ratio = n_inliers / len(mask)
 
-    print(
-        f"[MAGSAC++] Total: {len(mask)}  Inliers: {n_inliers}  "
-        f"Inlier ratio: {inlier_ratio:.3f}  Model: {model}"
+    logger.info(
+        "[MAGSAC++] Total: %d  Inliers: %d  Inlier ratio: %.3f  Model: %s",
+        len(mask),
+        n_inliers,
+        inlier_ratio,
+        model,
     )
 
     mkpts_src_clean = pts_src[mask]
@@ -124,20 +131,29 @@ def print_match_stats(
     conf: np.ndarray | None,
     label: str = "matches",
 ) -> None:
-    """Print summary statistics for a set of match pairs."""
-    print(f"--- {label} ---")
-    print(f"  Count : {len(mkpts_src)}")
+    """Log summary statistics for a set of match pairs."""
+    logger.info("--- %s ---", label)
+    logger.info("  Count : %d", len(mkpts_src))
     if conf is not None:
-        print(
-            f"  Conf  : min={conf.min():.3f}  max={conf.max():.3f}  mean={conf.mean():.3f}"
+        logger.info(
+            "  Conf  : min=%.3f  max=%.3f  mean=%.3f",
+            conf.min(),
+            conf.max(),
+            conf.mean(),
         )
     if len(mkpts_src) > 0:
         # Residuals in source image
-        print(
-            f"  Src   : x=[{mkpts_src[:, 0].min():.1f}, {mkpts_src[:, 0].max():.1f}]  "
-            f"y=[{mkpts_src[:, 1].min():.1f}, {mkpts_src[:, 1].max():.1f}]"
+        logger.info(
+            "  Src   : x=[%.1f, %.1f]  y=[%.1f, %.1f]",
+            mkpts_src[:, 0].min(),
+            mkpts_src[:, 0].max(),
+            mkpts_src[:, 1].min(),
+            mkpts_src[:, 1].max(),
         )
-        print(
-            f"  Ref   : x=[{mkpts_ref[:, 0].min():.1f}, {mkpts_ref[:, 0].max():.1f}]  "
-            f"y=[{mkpts_ref[:, 1].min():.1f}, {mkpts_ref[:, 1].max():.1f}]"
+        logger.info(
+            "  Ref   : x=[%.1f, %.1f]  y=[%.1f, %.1f]",
+            mkpts_ref[:, 0].min(),
+            mkpts_ref[:, 0].max(),
+            mkpts_ref[:, 1].min(),
+            mkpts_ref[:, 1].max(),
         )

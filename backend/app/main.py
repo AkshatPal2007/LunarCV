@@ -2,15 +2,18 @@
 FastAPI application entry point for LunarCV.
 """
 
+import logging
 import warnings
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.routes import health, images, registration, upload
 from app.config import settings
 from app.exceptions import LunarCVError
+
+logger = logging.getLogger(__name__)
 
 # Suppress torch.jit.script deprecation warning from dependencies
 warnings.filterwarnings("ignore", category=FutureWarning, module="torch.jit._script")
@@ -49,23 +52,23 @@ from app.api.routes import config
 app.include_router(config.router, prefix=settings.API_V1_STR, tags=["config"])
 
 
-# Serve result files
+_ALLOWED_RESULT_DIRS = {
+    "showcase_submission": settings.BASE_DIR / "outputs" / "submission",
+    "showcase_baseline": settings.RESULTS_DIR / "showcase_baseline_run",
+    "figures": settings.BASE_DIR / "outputs" / "figures",
+}
+
+
 @app.get(f"{settings.API_V1_STR}/files/{{job_id}}/{{filename}}")
 async def get_result_file(job_id: str, filename: str):
     """Serve result files (images, CSV, etc.)."""
-    # Check demo job locations first
-    if job_id == "showcase_submission":
-        file_path = settings.BASE_DIR / "outputs" / "submission" / filename
-    elif job_id == "showcase_baseline":
-        file_path = settings.RESULTS_DIR / "showcase_baseline_run" / filename
-    elif job_id == "figures":
-        file_path = settings.BASE_DIR / "outputs" / "figures" / filename
-    else:
-        file_path = settings.RESULTS_DIR / job_id / filename
+    base_dir = _ALLOWED_RESULT_DIRS.get(job_id, settings.RESULTS_DIR / job_id)
+    file_path = (base_dir / filename).resolve()
+
+    if not file_path.is_relative_to(base_dir.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid filename")
 
     if not file_path.exists():
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(file_path)

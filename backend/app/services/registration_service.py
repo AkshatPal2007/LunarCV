@@ -20,7 +20,7 @@ import csv
 import json
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 import cv2
@@ -369,12 +369,12 @@ def run_registration(
         job_store[job_id]["status"] = JobStatus.COMPLETED
         job_store[job_id]["progress"] = 100
         job_store[job_id]["message"] = f"Registration complete — {metrics_obj.decision}"
-        job_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        job_store[job_id]["completed_at"] = datetime.now(UTC).isoformat()
         job_store[job_id]["metrics"] = metrics_dict
 
     except Exception as exc:
         job_store[job_id]["status"] = JobStatus.FAILED
-        job_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
+        job_store[job_id]["completed_at"] = datetime.now(UTC).isoformat()
         job_store[job_id]["error"] = str(exc)
         job_store[job_id]["message"] = f"Failed: {exc}"
         logger.error(f"Registration job {job_id} failed:\n{traceback.format_exc()}")
