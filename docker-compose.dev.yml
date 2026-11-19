@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -9,12 +7,16 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - ./data:/app/../data
+      - ./backend:/app/backend
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
-      - BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+      - API_KEY=${API_KEY:-}
+      - PUBLIC_MODE=${PUBLIC_MODE:-false}
+      - OMP_NUM_THREADS=2
+      - OPENBLAS_NUM_THREADS=2
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+    command: uv run --frozen uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     restart: unless-stopped
     networks:
       - lunarcv-network
@@ -30,7 +32,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
+      - API_PROXY_TARGET=http://backend:8000
     depends_on:
       - backend
     restart: unless-stopped

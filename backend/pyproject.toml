@@ -1,6 +1,6 @@
 [project]
 name = "lunarcv"
-version = "0.1.0"
+version = "0.3.0"
 description = "Multi-modal lunar image registration with FastAPI backend"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,11 +21,15 @@ dependencies = [
     "scipy>=1.17.1",
     "tqdm>=4.70.0",
     "torch>=2.0.0",
-    "lightglue @ git+https://github.com/cvg/LightGlue.git",
+    "lightglue @ git+https://github.com/cvg/LightGlue.git@eb42fee2d71449efb0aa5c10549752b5d75384d8",
     "joblib>=1.6.0",
     "defusedxml>=0.7.1",
     "pyfftw>=0.15.1",
 ]
+
+[project.scripts]
+lunarcv-register = "lunarcv.cli:main"
+lunarcv-inspect = "lunarcv.audit:main"
 
 [dependency-groups]
 dev = [
@@ -38,12 +42,19 @@ dev = [
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["lunarcv"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lunarcv*", "app*"]
+
+[tool.setuptools.package-data]
+lunarcv = ["model_assets.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+extend-exclude = ["build", "dist"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "S", "B", "A", "C4", "PT", "SIM"]

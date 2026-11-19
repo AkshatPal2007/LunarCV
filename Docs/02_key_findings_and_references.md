@@ -6,7 +6,7 @@
 
 The related benchmark found that off-the-shelf SuperGlue performed best across the tested sensor pairs and regions, including difficult polar cases. This supports using a pretrained learned matcher as the primary path instead of relying on a classical feature detector alone.
 
-LunarCV uses LightGlue with SuperPoint as the current learned matching implementation. LightGlue is a faster, MIT-licensed successor in the same practical family of pretrained matching tools.
+The release development preset uses ALIKED with LightGlue. LightGlue code/weights are Apache-2.0; ALIKED is BSD-3-Clause. The prior SuperPoint extractor has a separate restrictive license. See the official https://github.com/cvg/LightGlue#license and Docs/public_release.md.
 
 ### 2. RIFT2 is a valuable independent matcher
 
@@ -67,7 +67,7 @@ For LROC geographic searches, use West/East longitude and South/North latitude f
 ### Software and algorithm references
 
 8. **LightGlue:** pretrained feature matching implementation from the CVG group, used with SuperPoint features.
-9. **RIFT2:** phase-congruency-based multimodal image matching implementation stored under `src/third_party/rift2/`.
+9. **RIFT2:** phase-congruency-based multimodal image matching implementation stored under `backend/lunarcv/third_party/rift2/`.
 10. **OpenCV MAGSAC++:** `cv2.USAC_MAGSAC`, used for robust geometric outlier rejection.
 11. **OpenCV sub-pixel tools:** `cv2.cornerSubPix` and `cv2.calcOpticalFlowPyrLK`.
 12. **DINOv2 and OmniGlue:** optional future components for large-mosaic retrieval or a stretch matcher; they are not required for the baseline.

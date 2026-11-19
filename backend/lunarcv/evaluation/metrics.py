@@ -125,15 +125,14 @@ def evaluate_homography_holdout(
         )
 
     fit_indices, heldout_indices = split
-    M, _ = cv2.estimateAffine2D(
+    H, _ = cv2.findHomography(
         pts_ref[fit_indices].astype(np.float32),
         pts_src[fit_indices].astype(np.float32),
-        method=cv2.RANSAC,
+        method=cv2.USAC_MAGSAC,
         ransacReprojThreshold=4.0,
         maxIters=10000,
         confidence=0.999,
     )
-    H = np.vstack([M, [0.0, 0.0, 1.0]]) if M is not None else None
     if H is None or not np.all(np.isfinite(H)):
         return HoldoutEvaluation(
             fit_count=len(fit_indices),
@@ -197,6 +196,19 @@ def quality_gate(
     Return "ACCEPT" or a "REJECT (<reason>)" string based on registration quality.
     Thresholds are calibrated for the OHRC ↔ LRO NAC cross-sensor scenario.
     """
+    values = [
+        metrics.rmse_forward,
+        metrics.rmse_backward,
+        metrics.spatial_uniformity,
+        metrics.overlap_pct,
+        metrics.inlier_ratio,
+    ]
+    if metrics.heldout_rmse_forward is not None:
+        values.append(metrics.heldout_rmse_forward)
+    if metrics.heldout_rmse_backward is not None:
+        values.append(metrics.heldout_rmse_backward)
+    if not np.isfinite(values).all():
+        return "REJECT (Non-finite metrics)"
     if metrics.evaluation_status != "heldout_valid":
         return "REJECT (Held-out validation unavailable)"
     if metrics.inlier_matches < min_inliers:

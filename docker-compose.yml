@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -7,14 +5,18 @@ services:
       dockerfile: Dockerfile
     container_name: lunarcv-backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      - ./backend:/app
       - ./data:/app/data
-      - backend-venv:/app/.venv
+      - ./outputs:/app/outputs
+      - model-cache:/root/.cache/torch
     environment:
       - PYTHONUNBUFFERED=1
-      - BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:80
+      - API_KEY=${API_KEY:-}
+      - PUBLIC_MODE=${PUBLIC_MODE:-false}
+      - OMP_NUM_THREADS=2
+      - OPENBLAS_NUM_THREADS=2
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173","http://localhost:80"]
     restart: unless-stopped
     networks:
       - lunarcv-network
@@ -28,16 +30,12 @@ services:
       - "5173:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
     restart: unless-stopped
     networks:
       - lunarcv-network
 
 volumes:
-  backend-venv:
-  data-uploads:
-  data-results:
+  model-cache:
 
 networks:
   lunarcv-network:

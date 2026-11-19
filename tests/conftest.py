@@ -1,4 +1,4 @@
-import os
+"""Allow legacy geography tests to exercise the maintained backend package."""
 import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"backend"))

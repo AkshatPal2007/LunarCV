@@ -39,3 +39,25 @@ frontend/dist/
 *.tmp
 *.swp
 .ipynb_checkpoints/
+
+# Persistent local job state
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Python package build outputs
+backend/build/
+backend/dist/
+
+# Browser verification outputs (may contain local mission quicklooks)
+frontend/playwright-report/
+frontend/test-results/
+
+# New API products/uploads may contain restricted mission imagery.
+# Existing tracked historical assets still require the release audit.
+data/results/*
+!data/results/.gitkeep
+data/uploads/*
+!data/uploads/.gitkeep
+data/sample_pairs/*
+!data/sample_pairs/.gitkeep

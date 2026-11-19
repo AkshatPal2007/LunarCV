@@ -19,7 +19,7 @@ async def list_images():
 
     # Scan data/raw/ for demo images
     if settings.RAW_DIR.exists():
-        for file in settings.RAW_DIR.glob("*"):
+        for file in settings.RAW_DIR.rglob("*"):
             if file.is_file() and file.suffix.lower() in [
                 ".img",
                 ".tif",

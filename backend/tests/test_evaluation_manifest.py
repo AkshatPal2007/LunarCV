@@ -21,9 +21,9 @@ def test_frozen_manifest_requires_scene_level_split():
     manifest = EvaluationManifest.load(MANIFEST_PATH)
 
     assert manifest.manifest_version == "1.0"
-    assert manifest.protocol_version == "priority-0-v1"
+    assert manifest.protocol_version == "development-v2"
     assert manifest.pair_split_unit == "scene"
-    assert manifest.pair("ohrc-lro-nac-m1350459544re-baseline").split == "test"
+    assert manifest.pair("ohrc-lro-nac-m1350459544re-baseline").split == "development"
     assert manifest.metrics["fit_metrics_are_not_accuracy"] is True
 
 

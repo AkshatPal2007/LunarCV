@@ -1,61 +1,42 @@
-"""
-LunarCV — Multi-modal lunar image registration library.
+"""LunarCV public helpers; heavy inference dependencies load only when used."""
 
-Core packages:
-  geo          : Metadata, BoundingBox, geographic prior & tiling
-  matching     : Matcher ABC, LightGlue, RIFT2 (optional), EnsembleMatcher
-  registration : MAGSAC++, spatial uniformity, sub-pixel, transform/warp
-  evaluation   : RMSE, spatial uniformity score, quality gate
-  io           : Memory-mapped image loading (OHRC, LRO NAC)
-  preprocessing: Image normalisation utilities
-"""
+from importlib import import_module
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
+_EXPORTS = {
+    "RegistrationMetrics": ("evaluation.metrics", "RegistrationMetrics"),
+    "calculate_rmse": ("evaluation.metrics", "calculate_rmse"),
+    "evaluate_spatial_uniformity": (
+        "evaluation.metrics",
+        "evaluate_spatial_uniformity",
+    ),
+    "quality_gate": ("evaluation.metrics", "quality_gate"),
+    "compute_overlap": ("geo.geo_prior", "compute_overlap"),
+    "estimate_scale_ratio": ("geo.geo_prior", "estimate_scale_ratio"),
+    "generate_tiles": ("geo.geo_prior", "generate_tiles"),
+    "BoundingBox": ("geo.metadata", "BoundingBox"),
+    "ImageMetadata": ("geo.metadata", "ImageMetadata"),
+    "extract_patch": ("io.raster", "extract_patch"),
+    "load_lro_nac_memmap": ("io.raster", "load_lro_nac_memmap"),
+    "load_ohrc_memmap": ("io.raster", "load_ohrc_memmap"),
+    "EnsembleMatcher": ("matching.ensemble", "EnsembleMatcher"),
+    "LightGlueFeatureMatcher": (
+        "matching.lightglue_matcher",
+        "LightGlueFeatureMatcher",
+    ),
+    "Matcher": ("matching.matcher", "Matcher"),
+    "magsac_filter": ("registration.outlier_rejection", "magsac_filter"),
+    "compute_registration": ("registration.transform", "compute_registration"),
+    "RegistrationEngine": ("engine", "RegistrationEngine"),
+    "RegistrationConfig": ("settings", "RegistrationConfig"),
+}
+__all__ = list(_EXPORTS)
 
-# Core I/O
-# Evaluation
-from lunarcv.evaluation.metrics import (
-    RegistrationMetrics,
-    calculate_rmse,
-    evaluate_spatial_uniformity,
-    quality_gate,
-)
-from lunarcv.geo.geo_prior import compute_overlap, estimate_scale_ratio, generate_tiles
 
-# Geo
-from lunarcv.geo.metadata import BoundingBox, ImageMetadata
-from lunarcv.io.raster import extract_patch, load_lro_nac_memmap, load_ohrc_memmap
-from lunarcv.matching.ensemble import EnsembleMatcher
-from lunarcv.matching.lightglue_matcher import LightGlueFeatureMatcher
-
-# Matching
-from lunarcv.matching.matcher import Matcher
-
-# Registration
-from lunarcv.registration.outlier_rejection import magsac_filter
-from lunarcv.registration.transform import compute_registration
-
-__all__ = [
-    # I/O
-    "load_ohrc_memmap",
-    "load_lro_nac_memmap",
-    "extract_patch",
-    # Matching
-    "Matcher",
-    "LightGlueFeatureMatcher",
-    "EnsembleMatcher",
-    # Registration
-    "magsac_filter",
-    "compute_registration",
-    # Evaluation
-    "RegistrationMetrics",
-    "calculate_rmse",
-    "evaluate_spatial_uniformity",
-    "quality_gate",
-    # Geo
-    "BoundingBox",
-    "ImageMetadata",
-    "compute_overlap",
-    "estimate_scale_ratio",
-    "generate_tiles",
-]
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    module, attribute = _EXPORTS[name]
+    value = getattr(import_module(f"lunarcv.{module}"), attribute)
+    globals()[name] = value
+    return value

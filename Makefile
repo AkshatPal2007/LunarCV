@@ -1,65 +1,45 @@
-.PHONY: help install dev-backend dev-frontend dev lint test clean docker-build docker-up docker-down docker-down-volumes docker-logs
-
+.PHONY: help install dev dev-backend dev-frontend lint test frontend-check browser-test real-browser-test build register inspect models release-check clean docker-build docker-up docker-down docker-logs
 help:
-	@echo "LunarCV - Available commands:"
-	@echo "  make install        - Install backend and frontend dependencies"
-	@echo "  make dev-backend    - Run backend dev server"
-	@echo "  make dev-frontend   - Run frontend dev server"
-	@echo "  make dev            - Run both backend and frontend in parallel"
-	@echo "  make lint           - Run linter on backend code"
-	@echo "  make test           - Run tests"
-	@echo "  make clean          - Clean generated files and caches"
-	@echo "  make docker-build         - Build Docker images"
-	@echo "  make docker-up            - Start services with docker-compose"
-	@echo "  make docker-down          - Stop services"
-	@echo "  make docker-down-volumes  - Stop services and remove volumes"
-	@echo "  make docker-logs          - View logs from services"
-
+	@echo "See COMMANDS.md for all commands and CLI flags."
+	@echo "install dev dev-backend dev-frontend lint test frontend-check browser-test real-browser-test build register inspect models release-check clean docker-build docker-up docker-down docker-logs"
 install:
-	@echo "Installing backend dependencies..."
-	cd backend && uv sync
-	@echo "Installing frontend dependencies..."
-	cd frontend && npm install
-
+	cd backend && uv sync --frozen
+	cd frontend && npm ci
+dev:
+	python3 scripts/dev.py
 dev-backend:
-	cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
+	cd backend && uv run --frozen uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 dev-frontend:
 	cd frontend && npm run dev
-
-dev:
-	python scripts/dev.py
-
 lint:
-	cd backend && uv run ruff check .
-
+	cd backend && uv run --frozen ruff check .
+	cd frontend && npm run lint
 test:
-	cd backend && uv run pytest
-
+	cd backend && uv run --frozen pytest tests ../tests -q
+frontend-check:
+	cd frontend && npm run typecheck && npm run lint && npm run format:check && npm run build
+browser-test:
+	cd frontend && npm test
+real-browser-test:
+	cd frontend && LUNARCV_REAL_DATA=1 npm test
+build:
+	backend/.venv/bin/python backend/scripts/build_wheel.py
+	cd frontend && npm run build
+register:
+	backend/.venv/bin/lunarcv-register
+inspect:
+	backend/.venv/bin/lunarcv-inspect $(RUN)
+models:
+	backend/.venv/bin/python backend/scripts/prefetch_models.py --features aliked
+release-check:
+	backend/.venv/bin/python backend/scripts/release_check.py
 clean:
-	@echo "Cleaning generated files..."
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf backend/.venv
-	rm -rf data/uploads/* data/results/*
-
+	python3 scripts/clean.py
 docker-build:
-	docker-compose build
-
+	docker compose build
 docker-up:
-	docker-compose up -d
-	@echo "Services started:"
-	@echo "  Backend API: http://localhost:8000"
-	@echo "  API Docs: http://localhost:8000/docs"
-	@echo "  Frontend: http://localhost:5173"
-
+	docker compose up -d
 docker-down:
-	docker-compose down
-
-docker-down-volumes:
-	docker-compose down -v
-
+	docker compose down
 docker-logs:
-	docker-compose logs -f
+	docker compose logs -f

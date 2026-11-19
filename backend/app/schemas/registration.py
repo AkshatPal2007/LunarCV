@@ -2,21 +2,26 @@
 Registration-related Pydantic schemas.
 """
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
 from .common import JobStatus
 
+PositiveFinite = Annotated[float, Field(gt=0, allow_inf_nan=False)]
+
 
 class RegistrationJobCreate(BaseModel):
     """Request to create a registration job."""
 
-    source_image_id: str = Field(..., description="Uploaded source image ID")
-    reference_image_id: str = Field(..., description="Uploaded reference image ID")
-    matcher: str = Field(
-        default="lightglue", description="Matcher to use (lightglue, loftr, rift2)"
-    )
+    source_image_id: str = Field(..., pattern=r"^[A-Za-z0-9_-]{1,100}$")
+    reference_image_id: str = Field(..., pattern=r"^[A-Za-z0-9_-]{1,100}$")
+    matcher: Literal["lightglue", "rift2", "ensemble"] = "ensemble"
+    model: Literal["similarity", "affine", "homography"] = "affine"
+    features: Literal["disk", "aliked", "sift"] = "aliked"
+    source_bounds: tuple[int, int, int, int] | None = None
+    reference_bounds: tuple[int, int, int, int] | None = None
+    source_scale_xy: tuple[PositiveFinite, PositiveFinite] = (1.0, 1.0)
 
 
 class RegistrationJobResponse(BaseModel):
@@ -34,7 +39,7 @@ class RegistrationJobStatus(BaseModel):
     status: JobStatus
     progress: int | None = Field(None, description="Progress percentage (0-100)")
     message: str | None = None
-    created_at: str
+    created_at: str | None
     completed_at: str | None = None
 
 
@@ -48,6 +53,10 @@ class RegistrationResults(BaseModel):
     overlay_image_url: str | None = None
     checkerboard_image_url: str | None = None
     correspondence_csv_url: str | None = None
+    transform_url: str | None = None
+    science_raster_url: str | None = None
+    metrics_url: str | None = None
+    manifest_url: str | None = None
     error: str | None = None
 
 

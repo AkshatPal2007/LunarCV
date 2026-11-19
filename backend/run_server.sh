@@ -1,5 +1,4 @@
 #!/bin/bash
-# Start the FastAPI development server
-
+set -euo pipefail
 cd "$(dirname "$0")"
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+exec uv run --frozen uvicorn app.main:app --reload --host 127.0.0.1 --port 8000

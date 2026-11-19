@@ -1,59 +1,48 @@
-"""
-FastAPI application configuration.
-"""
+"""Validated deployment settings; registration parameters live in RegistrationConfig."""
 
+import os
 from pathlib import Path
 
-from pydantic_settings import BaseSettings
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_checkout = Path(__file__).resolve().parents[2]
+ROOT = (
+    _checkout
+    if (_checkout / "backend/pyproject.toml").is_file()
+    else Path(os.environ.get("LUNARCV_HOME", str(Path.home() / ".local/share/lunarcv")))
+)
 
 
 class Settings(BaseSettings):
-    """Application settings."""
-
-    # API Configuration
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=(ROOT / ".env", Path.cwd() / ".env"),
+        extra="ignore",
+    )
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "LunarCV API"
-    VERSION: str = "0.1.0"
-
-    # CORS - restrict in production, open for local dev
+    VERSION: str = "0.3.0"
     BACKEND_CORS_ORIGINS: list[str] = [
-        "http://localhost:5173",  # Vite dev server
+        "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "http://localhost:8000",  # Backend itself
-        "http://127.0.0.1:8000",
+        "http://localhost:8000",
     ]
-
-    # File Upload
-    MAX_UPLOAD_SIZE: int = 1024 * 1024 * 1024  # 1GB
+    MAX_UPLOAD_SIZE: int = 2 * 1024**3
     ALLOWED_EXTENSIONS: set[str] = {".img", ".tif", ".tiff", ".png", ".jpg", ".jpeg"}
-
-    # Storage paths
-    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
-    RAW_DIR: Path = BASE_DIR / "data" / "raw"
-    UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
-    RESULTS_DIR: Path = BASE_DIR / "data" / "results"
-    EVALUATION_MANIFEST_PATH: Path = (
-        BASE_DIR / "data" / "metadata" / "evaluation_manifest.json"
-    )
-
-    # Processing
-    CLEANUP_AFTER_HOURS: int = 24  # Auto-delete results after 24 hours
-
-    # Processing parameters
+    BASE_DIR: Path = ROOT
+    RAW_DIR: Path = ROOT / "data/raw"
+    UPLOAD_DIR: Path = ROOT / "data/uploads"
+    RESULTS_DIR: Path = ROOT / "data/results"
+    JOB_DB_PATH: Path = ROOT / "data/jobs.sqlite3"
+    CACHE_DIR: Path = ROOT / "outputs/match_cache"
+    EVALUATION_MANIFEST_PATH: Path = ROOT / "data/metadata/evaluation_manifest.json"
+    CLEANUP_AFTER_HOURS: int = 24
+    MAX_PENDING_JOBS: int = Field(4, ge=1, le=16)
+    JOB_TIMEOUT_SECONDS: int = Field(600, ge=30)
+    API_KEY: str | None = None
+    PUBLIC_MODE: bool = False
     MAX_IMAGE_DIMENSION: int = 8192
-    LIGHTGLUE_MAX_DIM: int = 1500
-    LIGHTGLUE_MAX_KEYPOINTS: int = 2048
-    MAGSAC_REPROJ_THRESHOLD: float = 4.0
-    MIN_INLIERS: int = 4
-    MAX_UPLOAD_SIZE_MB: int = 1024
-
-    class Config:
-        case_sensitive = True
 
 
 settings = Settings()
-
-# Ensure directories exist lazily in app setup, but we'll leave them here for now
-settings.RAW_DIR.mkdir(parents=True, exist_ok=True)
-settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-settings.RESULTS_DIR.mkdir(parents=True, exist_ok=True)

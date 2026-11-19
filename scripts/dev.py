@@ -1,60 +1,38 @@
 #!/usr/bin/env python3
-"""Cross-platform dev server launcher for backend + frontend."""
-
-import subprocess
+"""Run both dev servers with bounded process-tree cleanup. Use WSL on Windows."""
+import os
 from pathlib import Path
+import shutil
+import signal
+import subprocess
+import time
 
-
-def run_dev():
-    """Run backend and frontend in parallel with proper cleanup."""
-    root_dir = Path(__file__).parent.parent
-    backend_dir = root_dir / "backend"
-    frontend_dir = root_dir / "frontend"
-
-    print("Starting backend and frontend in parallel...")
-    print("Backend: http://localhost:8000")
-    print("Frontend: http://localhost:5173")
-    print("Press Ctrl+C to stop both servers\n")
-
-    processes = []
-
+def main():
+    root=Path(__file__).resolve().parents[1]
+    processes=[]
+    commands=[(["uv","run","--frozen","uvicorn","app.main:app","--reload","--host","127.0.0.1","--port","8000"],root/"backend"),(["npm.cmd" if os.name=="nt" else "npm","run","dev"],root/"frontend")]
     try:
-        # Start backend
-        backend_cmd = [
-            "uv",
-            "run",
-            "uvicorn",
-            "app.main:app",
-            "--reload",
-            "--host",
-            "0.0.0.0",
-            "--port",
-            "8000",
-        ]
-        backend_proc = subprocess.Popen(backend_cmd, cwd=backend_dir)
-        processes.append(backend_proc)
-
-        # Start frontend
-        frontend_cmd = ["npm", "run", "dev"]
-        frontend_proc = subprocess.Popen(frontend_cmd, cwd=frontend_dir, shell=True)
-        processes.append(frontend_proc)
-
-        # Wait for both processes
-        for proc in processes:
-            proc.wait()
-
+        for command,cwd in commands:
+            if not shutil.which(command[0]):
+                raise RuntimeError(f"Required executable missing: {command[0]}")
+            options={"creationflags":subprocess.CREATE_NEW_PROCESS_GROUP} if os.name=="nt" else {"start_new_session":True}
+            processes.append(subprocess.Popen(command,cwd=cwd,**options))
+        print("Frontend: http://localhost:5173 · API: http://localhost:8000/docs",flush=True)
+        while all(process.poll() is None for process in processes):
+            time.sleep(0.25)
+        return next((process.returncode for process in processes if process.returncode),0)
     except KeyboardInterrupt:
-        print("\nShutting down servers...")
+        return 0
     finally:
-        # Clean up processes
-        for proc in processes:
-            if proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
+        for process in processes:
+            if process.poll() is not None:
+                continue
+            if os.name=="nt":
+                subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],check=False,capture_output=True)
+            else:
+                os.killpg(process.pid,signal.SIGTERM)
+                try:process.wait(timeout=8)
+                except subprocess.TimeoutExpired:os.killpg(process.pid,signal.SIGKILL)
 
-
-if __name__ == "__main__":
-    run_dev()
+if __name__=="__main__":
+    raise SystemExit(main())

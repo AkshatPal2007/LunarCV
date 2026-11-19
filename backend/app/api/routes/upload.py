@@ -4,7 +4,7 @@ Image upload endpoints.
 
 import logging
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -40,6 +40,7 @@ async def upload_image(file: UploadFile = File(...)):
 
     # Stream file to disk while enforcing max size
     bytes_read = 0
+    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     with open(save_path, "wb") as f:
         while chunk := await file.read(1024 * 1024):  # 1MB chunks
             bytes_read += len(chunk)
@@ -52,7 +53,9 @@ async def upload_image(file: UploadFile = File(...)):
             f.write(chunk)
 
     # Validate uploaded file
-    validation = validate_uploaded_file(save_path, max_size_mb=1024)
+    validation = validate_uploaded_file(
+        save_path, max_size_mb=settings.MAX_UPLOAD_SIZE // 1024**2
+    )
     if not validation["valid"]:
         save_path.unlink()  # Delete invalid file
         raise HTTPException(status_code=400, detail=validation["error"])
@@ -67,3 +70,30 @@ async def upload_image(file: UploadFile = File(...)):
         size=bytes_read,
         uploaded_at=datetime.now(UTC).isoformat(),
     )
+
+
+@router.post("/upload/{file_id}/label")
+async def upload_label(file_id: str, file: UploadFile = File(...)):
+    import re
+
+    from defusedxml import ElementTree
+
+    if (
+        not re.fullmatch(r"[a-f0-9-]{36}", file_id)
+        or not (settings.UPLOAD_DIR / f"{file_id}.img").is_file()
+    ):
+        raise HTTPException(status_code=404, detail="Uploaded IMG ID not found")
+    content = await file.read(2 * 1024 * 1024 + 1)
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PDS label exceeds 2 MiB")
+    try:
+        ElementTree.fromstring(content)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid XML label") from exc
+    label = settings.UPLOAD_DIR / f"{file_id}.xml"
+    if label.exists():
+        raise HTTPException(
+            status_code=409, detail="Label already exists; create a new product upload"
+        )
+    label.write_bytes(content)
+    return {"file_id": file_id, "label_uploaded": True}

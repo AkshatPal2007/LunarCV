@@ -76,7 +76,8 @@ class RIFT2:
             for i in range(4):
                 CS[:, :, j] += np.abs(eo[i][j])
 
-        MIM = np.argmax(CS, axis=2)
+        # Convert once, not once per keypoint. Orientation indices are exact in float32.
+        MIM = np.argmax(CS, axis=2).astype(np.float32)
         des = np.zeros((config["no"] * config["no"] * config["nbin"], n))
 
         def process_keypoint(k):
@@ -92,37 +93,38 @@ class RIFT2:
             patch_rot = patch - idx + 1
             patch_rot[patch_rot < 0] += config["no"]
 
-            ys, xs = patch_rot.shape
-            histo = np.zeros((config["no"], config["no"], config["nbin"]))
-
-            for j in range(config["no"]):
-                for i in range(config["no"]):
-                    clip = patch_rot[
-                        round((j) * ys / config["no"]) : round(
-                            (j + 1) * ys / config["no"]
-                        ),
-                        round((i) * xs / config["no"]) : round(
-                            (i + 1) * xs / config["no"]
-                        ),
-                    ]
-                    histo[j, i, :] = np.histogram(
-                        clip, bins=np.arange(1, config["nbin"] + 2)
-                    )[0]
-
-            histo = histo.flatten()
+            histo = self.cell_histograms(patch_rot, config["no"], config["nbin"])
 
             if np.linalg.norm(histo) != 0:
                 histo = histo / np.linalg.norm(histo)
 
             return histo
 
-        des = Parallel(n_jobs=-1)(delayed(process_keypoint)(k) for k in range(n))
+        des = Parallel(n_jobs=config.get("n_jobs", 2), prefer="threads")(delayed(process_keypoint)(k) for k in range(n))
         des = np.array(des).T
 
         return des
 
+    @staticmethod
+    def cell_histograms(patch, grid, bins):
+        """Exact np.histogram cell counts with one indexed accumulation.
+
+        Preserve rounded cell boundaries, [1,bins+1] range and inclusive final
+        edge of the original descriptor. This changes no orientation semantics.
+        """
+        rows, cols = patch.shape
+        row_edges = [round(j * rows / grid) for j in range(grid + 1)]
+        col_edges = [round(j * cols / grid) for j in range(grid + 1)]
+        row_ids = np.repeat(np.arange(grid), np.diff(row_edges))
+        col_ids = np.repeat(np.arange(grid), np.diff(col_edges))
+        cells = row_ids[:, None] * grid + col_ids[None, :]
+        valid = np.isfinite(patch) & (patch >= 1) & (patch <= bins + 1)
+        orientation = np.minimum(np.floor(patch[valid]).astype(np.int64) - 1, bins - 1)
+        indices = cells[valid] * bins + orientation
+        return np.bincount(indices, minlength=grid * grid * bins).astype(np.float64)
+
     def extract_patches(self, img, x, y, s, t):
-        img = img.astype(np.float32)
+        img = np.asarray(img, dtype=np.float32)
         h, w = img.shape[:2]
         m = img.shape[2] if img.ndim == 3 else 1
 

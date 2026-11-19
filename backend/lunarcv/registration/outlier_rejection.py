@@ -55,8 +55,24 @@ def magsac_filter(
     H               : ndarray (3, 3) | None — fitted homography (None if fundamental)
     mask            : ndarray (N,) bool — full inlier mask over input
     """
+    if model not in {"affine", "similarity", "homography", "fundamental"}:
+        raise ValueError("Unsupported outlier-rejection model")
+    if (
+        mkpts_src.shape != mkpts_ref.shape
+        or mkpts_src.ndim != 2
+        or mkpts_src.shape[1] != 2
+    ):
+        raise ValueError("Geometric verification requires paired Nx2 points")
+    if not np.isfinite(mkpts_src).all() or not np.isfinite(mkpts_ref).all():
+        raise ValueError("Non-finite match coordinates")
+    if conf is not None and (
+        conf.shape != (len(mkpts_src),) or not np.isfinite(conf).all()
+    ):
+        raise ValueError("Invalid match confidence")
     if len(mkpts_src) < 4:
-        logger.warning("[MAGSAC++] Only %d matches — need ≥4. Returning empty.", len(mkpts_src))
+        logger.warning(
+            "[MAGSAC++] Only %d matches — need ≥4. Returning empty.", len(mkpts_src)
+        )
         empty = np.empty((0, 2), dtype=np.float32)
         return empty, empty, None, None, np.zeros(len(mkpts_src), dtype=bool)
 

@@ -1,33 +1,13 @@
 FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install uv for faster dependency management
-RUN pip install uv
-
-# Copy dependency files
-COPY pyproject.toml ./
-
-# Install dependencies
-RUN uv pip install --system -r pyproject.toml
-
-# Install LightGlue from git (specified in dependencies)
-RUN pip install git+https://github.com/cvg/LightGlue.git
-
-# Copy application code
-COPY . .
-
-# Create data directories
-RUN mkdir -p /app/data/uploads /app/data/results
-
-# Expose port
+WORKDIR /app/backend
+ENV PYTHONUNBUFFERED=1 OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2
+RUN apt-get update && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir uv==0.13.7
+COPY pyproject.toml uv.lock README.md ./
+COPY lunarcv ./lunarcv
+COPY app ./app
+COPY scripts ./scripts
+RUN uv sync --frozen --no-dev
+RUN mkdir -p /app/data/uploads /app/data/results /app/outputs/match_cache
 EXPOSE 8000
-
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--frozen", "--no-dev", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

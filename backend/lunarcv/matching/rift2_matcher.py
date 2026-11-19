@@ -9,6 +9,7 @@ import logging
 import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from lunarcv.matching.matcher import Matcher
@@ -46,6 +47,8 @@ class RIFT2Matcher(Matcher):
                 "RIFT2 third-party library could not be imported. "
                 f"Ensure {_RIFT2_DIR} exists and dependencies are installed."
             )
+        self.max_dim = kwargs.pop("max_dim", 1024)
+        kwargs.setdefault("npt", 2048)
         self.rift = RIFT2(config_file=config_file, **kwargs)
 
     def match(
@@ -61,9 +64,19 @@ class RIFT2Matcher(Matcher):
             np.empty((0,), dtype=np.float32),
         )
 
+        def prepare(image):
+            h, w = image.shape
+            ratio = min(1.0, self.max_dim / max(h, w))
+            size = (max(16, round(w * ratio)), max(16, round(h * ratio)))
+            return cv2.resize(image, size, interpolation=cv2.INTER_AREA), np.array(
+                [w / size[0], h / size[1]]
+            )
+
+        src_img, src_scale = prepare(src_img)
+        ref_img, ref_scale = prepare(ref_img)
         kp1, des1, kp2, des2 = self.rift(src_img, ref_img)
 
-        if len(kp1) == 0 or len(kp2) == 0 or des1 is None or des2 is None:
+        if len(kp1) < 2 or len(kp2) < 2 or des1 is None or des2 is None:
             return _empty
 
         pts_src, pts_ref, _ = match_keypoints_nn(
@@ -81,4 +94,8 @@ class RIFT2Matcher(Matcher):
             mask = conf >= conf_threshold
             pts_src, pts_ref, conf = pts_src[mask], pts_ref[mask], conf[mask]
 
-        return pts_src, pts_ref, conf
+        return (
+            (pts_src + 0.5) * src_scale - 0.5,
+            (pts_ref + 0.5) * ref_scale - 0.5,
+            conf,
+        )

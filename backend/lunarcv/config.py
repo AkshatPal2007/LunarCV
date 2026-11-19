@@ -87,10 +87,4 @@ OHRC_PROCESSED_DIR = PROCESSED_DIR / "ohrc"
 LRO_PROCESSED_DIR = PROCESSED_DIR / "lro"
 MATCHES_PROCESSED_DIR = PROCESSED_DIR / "matches"
 
-# Create required output directories on import
-OHRC_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-LRO_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-MATCHES_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-EVAL_DIR.mkdir(parents=True, exist_ok=True)
-SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
+# Legacy path constants only. Callers create output directories explicitly.

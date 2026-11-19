@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 MANIFEST_SCHEMA_VERSION = "1.0"
-PROTOCOL_VERSION = "priority-0-v1"
+PROTOCOL_VERSION = "development-v2"
 
 
 @dataclass(frozen=True)

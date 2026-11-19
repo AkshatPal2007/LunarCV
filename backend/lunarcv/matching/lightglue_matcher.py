@@ -1,7 +1,7 @@
 """
-matching_lightglue.py — Feature matching using SuperPoint + LightGlue for LunarCV.
+matching_lightglue.py — Feature matching using DISK/ALIKED + LightGlue for LunarCV.
 
-Wraps official CVG SuperPoint + LightGlue for cross-sensor lunar image matching.
+Wraps official CVG DISK/ALIKED + LightGlue for cross-sensor lunar image matching.
 Maintains an identical interface to LoFTRMatcher and RIFT2Matcher.
 """
 
@@ -12,7 +12,7 @@ import logging
 import cv2
 import numpy as np
 import torch
-from lightglue import LightGlue, SuperPoint
+from lightglue import ALIKED, DISK, SIFT, LightGlue
 from lightglue.utils import rbd
 
 from lunarcv.matching.matcher import Matcher
@@ -22,12 +22,16 @@ logger = logging.getLogger(__name__)
 
 class LightGlueFeatureMatcher(Matcher):
     """
-    Wrapper around official CVG SuperPoint + LightGlue for LunarCV.
+    Wrapper around official CVG DISK/ALIKED + LightGlue for LunarCV.
     Maintains an identical interface to LoFTRMatcher.
     """
 
     def __init__(
-        self, device: str | None = None, max_dim: int = 1024, max_keypoints: int = 2048
+        self,
+        device: str | None = None,
+        max_dim: int = 1024,
+        max_keypoints: int = 2048,
+        features: str = "aliked",
     ):
         self.device = torch.device(
             device if device else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,15 +39,20 @@ class LightGlueFeatureMatcher(Matcher):
         self.max_dim = max_dim
         self.max_keypoints = max_keypoints
 
-        logger.info("Loading SuperPoint extractor on %s", self.device)
+        extractors = {"disk": DISK, "aliked": ALIKED, "sift": SIFT}
+        if features not in extractors:
+            raise ValueError("Release extractor must be disk, aliked, or sift")
+        self.features = features
+        logger.info("Loading %s extractor on %s", features, self.device)
         self.extractor = (
-            SuperPoint(max_num_keypoints=self.max_keypoints).to(self.device).eval()
+            extractors[features](max_num_keypoints=self.max_keypoints)
+            .to(self.device)
+            .eval()
         )
-
-        logger.info("Loading LightGlueMatcher(superpoint)")
-        self.matcher = LightGlue(features="superpoint").to(self.device).eval()
-
-        logger.info("Ready | max_dim=%d | max_keypoints=%d", self.max_dim, max_keypoints)
+        self.matcher = LightGlue(features=features).to(self.device).eval()
+        logger.info(
+            "Ready | max_dim=%d | max_keypoints=%d", self.max_dim, max_keypoints
+        )
 
     @torch.no_grad()
     def match(
@@ -53,7 +62,7 @@ class LightGlueFeatureMatcher(Matcher):
         conf_threshold: float = 0.0,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Run SuperPoint + LightGlue on a pair of uint8 single-channel images.
+        Run DISK/ALIKED + LightGlue on a pair of uint8 single-channel images.
         """
         src_proc, scale_src = self._resize_for_matcher(src_u8)
         ref_proc, scale_ref = self._resize_for_matcher(ref_u8)
@@ -69,8 +78,8 @@ class LightGlueFeatureMatcher(Matcher):
         t_src = to_tensor(src_proc)
         t_ref = to_tensor(ref_proc)
 
-        feats_src = self.extractor.extract(t_src)
-        feats_ref = self.extractor.extract(t_ref)
+        feats_src = self.extractor.extract(t_src, resize=None)
+        feats_ref = self.extractor.extract(t_ref, resize=None)
 
         matches_dict = self.matcher({"image0": feats_src, "image1": feats_ref})
         feats_src, feats_ref, matches_dict = [
@@ -78,7 +87,7 @@ class LightGlueFeatureMatcher(Matcher):
         ]
 
         matches = matches_dict["matches"]  # (K, 2)
-        scores = matches_dict.get("matching_scores", None)
+        scores = matches_dict.get("scores", None)
 
         if len(matches) == 0:
             logger.warning("No matches found")
@@ -91,18 +100,18 @@ class LightGlueFeatureMatcher(Matcher):
         if scores is not None:
             conf = scores.cpu().numpy()
         else:
-            conf = np.ones(len(matches), dtype=np.float32)
+            raise ValueError("LightGlue output is missing per-match scores")
+        if conf.shape != (len(matches),) or not np.isfinite(conf).all():
+            raise ValueError("Invalid LightGlue confidence output")
 
         del t_src, t_ref, feats_src, feats_ref, matches_dict
-        if self.device.type == "cuda":
-            torch.cuda.empty_cache()
 
         if conf_threshold > 0.0:
             mask = conf >= conf_threshold
             pts_src, pts_ref, conf = pts_src[mask], pts_ref[mask], conf[mask]
 
-        mkpts_src = pts_src * scale_src
-        mkpts_ref = pts_ref * scale_ref
+        mkpts_src = (pts_src + 0.5) * scale_src - 0.5
+        mkpts_ref = (pts_ref + 0.5) * scale_ref - 0.5
 
         logger.info("Matches: %d", len(conf))
         return mkpts_src, mkpts_ref, conf

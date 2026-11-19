@@ -1,3 +1,5 @@
+> Historical planning document. For implemented behavior and measured results, see [current architecture](architecture/overview.md) and [engineering report](production_readiness_report.md).
+
 # Project Goals and Submission Plan
 
 ## What We Are Doing

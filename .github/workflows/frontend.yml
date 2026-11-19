@@ -1,0 +1,18 @@
+name: Frontend contracts
+on: [push, pull_request]
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run typecheck && npm run lint && npm run format:check && npm run build && npm audit --audit-level=high
+        working-directory: frontend
+# Browser integration requires a running backend. The real-data test is opt-in,
+# never populated with synthetic mission imagery or unlicensed downloaded assets.

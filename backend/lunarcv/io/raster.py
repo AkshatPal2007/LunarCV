@@ -62,8 +62,14 @@ def parse_lro_pds_header(img_path: Path) -> dict:
     offset = ((image_pointer - 1) * rec_bytes) if image_pointer and rec_bytes else 0
     sample_type = get_val("SAMPLE_TYPE", default="MSB_INTEGER").upper()
     byte_order = "little" if "LSB" in sample_type else "big"
+    if bits not in (8, 16, 32) or "REAL" in sample_type:
+        raise ValueError(f"Unsupported PDS3 sample type: {sample_type}/{bits}")
+    # LROC 8-bit EDR counts are unsigned despite the LSB_INTEGER label.
+    unsigned = bits == 8 or "UNSIGNED" in sample_type
     dtype = np.dtype(
-        ("<" if byte_order == "little" else ">") + ("u1" if bits == 8 else "u2")
+        ("<" if byte_order == "little" else ">")
+        + ("u" if unsigned else "i")
+        + str(bits // 8)
     )
 
     return {
@@ -111,6 +117,17 @@ def parse_pds4_xml(img_path: Path) -> dict:
         )
 
     root = ElementTree.parse(label_path).getroot()
+    arrays = [
+        element
+        for element in root.iter()
+        if element.tag.rsplit("}", 1)[-1]
+        in {"Array_2D_Image", "Array_2D", "Array_3D_Image", "Array_3D"}
+    ]
+    if len(arrays) != 1 or "3D" in arrays[0].tag:
+        raise ValueError(
+            "PDS4 requires exactly one supported 2D array; cubes/multiple arrays need an explicit band adapter"
+        )
+    array_root = arrays[0]
 
     def required(name: str) -> str:
         value = _xml_value(root, name)
@@ -119,7 +136,7 @@ def parse_pds4_xml(img_path: Path) -> dict:
         return value
 
     axis_sizes: dict[str, int] = {}
-    for axis in root.iter():
+    for axis in array_root.iter():
         if axis.tag.rsplit("}", 1)[-1] != "Axis_Array":
             continue
         axis_name = _xml_value(axis, "axis_name")
@@ -132,14 +149,14 @@ def parse_pds4_xml(img_path: Path) -> dict:
         )
     lines = axis_sizes["line"]
     samples = axis_sizes["sample"]
-    offset = int(_xml_value(root, "offset") or "0")
-    data_type = (_xml_value(root, "data_type") or "UnsignedByte").upper()
+    offset = int(_xml_value(array_root, "offset") or "0")
+    data_type = (_xml_value(array_root, "data_type") or "UnsignedByte").upper()
     bits_selection = (_xml_value(root, "bits_selection") or "MSB").upper()
-    byte_order = (
-        "little" if "LSB" in bits_selection or "LITTLE" in bits_selection else "big"
-    )
+    byte_order = "little" if "LSB" in data_type else "big"
     if data_type in {"UNSIGNEDBYTE", "SIGNEDBYTE"}:
-        dtype_code = "u1"
+        byte_order = "little" if "LSB" in bits_selection else "big"
+    if data_type in {"UNSIGNEDBYTE", "SIGNEDBYTE"}:
+        dtype_code = "i1" if data_type == "SIGNEDBYTE" else "u1"
     elif data_type in {"UNSIGNEDMSB2", "UNSIGNEDLSB2", "SIGNEDMSB2", "SIGNEDLSB2"}:
         dtype_code = "u2" if "UNSIGNED" in data_type else "i2"
     elif data_type in {"UNSIGNEDMSB4", "UNSIGNEDLSB4", "SIGNEDMSB4", "SIGNEDLSB4"}:

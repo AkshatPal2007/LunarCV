@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
@@ -735,7 +735,7 @@ wheels = [
 [[package]]
 name = "lightglue"
 version = "0.0"
-source = { git = "https://github.com/cvg/LightGlue.git#eb42fee2d71449efb0aa5c10549752b5d75384d8" }
+source = { git = "https://github.com/cvg/LightGlue.git?rev=eb42fee2d71449efb0aa5c10549752b5d75384d8#eb42fee2d71449efb0aa5c10549752b5d75384d8" }
 dependencies = [
     { name = "kornia" },
     { name = "matplotlib" },
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "lunarcv"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "defusedxml" },
@@ -789,7 +789,7 @@ requires-dist = [
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "joblib", specifier = ">=1.6.0" },
-    { name = "lightglue", git = "https://github.com/cvg/LightGlue.git" },
+    { name = "lightglue", git = "https://github.com/cvg/LightGlue.git?rev=eb42fee2d71449efb0aa5c10549752b5d75384d8" },
     { name = "matplotlib", specifier = ">=3.11.1" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "opencv-contrib-python", specifier = ">=5.0.0.93" },

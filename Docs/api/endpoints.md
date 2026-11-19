@@ -1,302 +1,37 @@
-# API Reference
+# API contracts
 
-Complete reference for the LunarCV REST API.
+Base path `/api/v1`; interactive schema: `/docs`, JSON schema: `/api/v1/openapi.json`. When configured, send `X-API-Key` on all endpoints except health/root (including downloads). Never put keys in query strings.
 
-## Base URL
+| Method/path | Purpose |
+| --- | --- |
+| GET `/health` | Process liveness; not scientific validity |
+| GET `/ready` | Storage/model availability; can return 503 |
+| GET `/images` | Real raw/uploaded product IDs and sizes |
+| GET `/images/{id}/metadata` | Header dimensions/dtype; does not decode whole product |
+| GET `/pairs` | Actual local development-scene availability and declared search request |
+| POST `/upload` | Stream image multipart field `file`, max 2 GiB |
+| POST `/upload/{id}/label` | PDS4 XML for uploaded IMG, max 2 MiB; immutable once attached |
+| POST `/register` | Validate products/windows, queue job; 400/404/409/422/429/503 on failure |
+| GET `/jobs?limit=30` | Durable recent history, max 100; no absolute source paths |
+| GET `/jobs/{id}` | Actual state/progress/message |
+| DELETE `/jobs/{id}` | Request cancellation at stage boundary; 409 if terminal |
+| GET `/jobs/{id}/results` | Terminal metrics/error/artifact URLs |
+| GET `/jobs/{id}/visualization` | Terminal native-coordinate points, frames and available artifacts; 409 before terminal |
+| GET `/files/{id}/{filename}` | Contained artifact file retrieval |
+| GET `/config/processing` | Actual default processing configuration |
+| GET `/config/correspondence-points` | Deprecated historical processing-coordinate showcase, not current evidence |
+| GET `/config/transform-matrix` | Deprecated historical showcase transform, not current evidence |
 
-```
-http://localhost:8000/api/v1
-```
-
-## Endpoints
-
-### Health Check
-
-#### GET /health
-
-Check API health status.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "version": "0.1.0"
-}
-```
-
-**Status Codes:**
-- `200 OK` - Service is healthy
-
----
-
-### Upload Image
-
-#### POST /upload
-
-Upload a source or reference image for registration.
-
-**Request:**
-- **Content-Type**: `multipart/form-data`
-- **Body**: Form field `file` with image data
-
-**Supported Formats:**
-- `.img` (PDS raw)
-- `.tif`, `.tiff` (GeoTIFF)
-- `.png`, `.jpg`, `.jpeg`
-
-**Size Limit:** 1GB
-
-**Example:**
-```bash
-curl -X POST http://localhost:8000/api/v1/upload \
-  -F "file=@chandrayaan2_ohrc.png"
-```
-
-**Response:**
-```json
-{
-  "file_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "filename": "chandrayaan2_ohrc.png",
-  "size": 15728640,
-  "uploaded_at": "2026-09-06T12:34:56.789Z"
-}
-```
-
-**Status Codes:**
-- `200 OK` - Upload successful
-- `400 Bad Request` - Invalid file type
-- `413 Payload Too Large` - File exceeds size limit
-
----
-
-### Create Registration Job
-
-#### POST /register
-
-Start a registration job between two uploaded images.
-
-**Request:**
-```json
-{
-  "source_image_id": "uuid-of-source-image",
-  "reference_image_id": "uuid-of-reference-image",
-  "matcher": "lightglue"
-}
-```
-
-**Parameters:**
-- `source_image_id` (string, required) - UUID from upload response
-- `reference_image_id` (string, required) - UUID from upload response
-- `matcher` (string, optional) - Feature matcher to use
-  - `"lightglue"` (default) - SuperPoint + LightGlue
-  - `"loftr"` - LoFTR (future)
-  - `"rift2"` - RIFT2 (future)
-
-**Example:**
-```bash
-curl -X POST http://localhost:8000/api/v1/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "source_image_id": "source-uuid",
-    "reference_image_id": "reference-uuid",
-    "matcher": "lightglue"
-  }'
-```
-
-**Response:**
-```json
-{
-  "job_id": "job-uuid",
-  "status": "pending",
-  "created_at": "2026-09-06T12:35:00.000Z"
-}
-```
-
-**Status Codes:**
-- `200 OK` - Job created successfully
-- `404 Not Found` - Source or reference image not found
-
----
-
-### Get Job Status
-
-#### GET /jobs/{job_id}
-
-Poll the status of a registration job.
-
-**Parameters:**
-- `job_id` (path, string) - UUID of the job
-
-**Example:**
-```bash
-curl http://localhost:8000/api/v1/jobs/job-uuid
-```
-
-**Response:**
-```json
-{
-  "job_id": "job-uuid",
-  "status": "processing",
-  "progress": 75,
-  "message": "Refining matches...",
-  "created_at": "2026-09-06T12:35:00.000Z",
-  "completed_at": null
-}
-```
-
-**Status Values:**
-- `pending` - Job queued, not started
-- `processing` - Job in progress
-- `completed` - Job finished successfully
-- `failed` - Job failed
-
-**Progress:** 0-100 integer (only present during `processing`)
-
-**Status Codes:**
-- `200 OK` - Job found
-- `404 Not Found` - Job does not exist
-
----
-
-### Get Job Results
-
-#### GET /jobs/{job_id}/results
-
-Retrieve results from a completed job.
-
-**Parameters:**
-- `job_id` (path, string) - UUID of the job
-
-**Example:**
-```bash
-curl http://localhost:8000/api/v1/jobs/job-uuid/results
-```
-
-**Response (Success):**
-```json
-{
-  "job_id": "job-uuid",
-  "status": "completed",
-  "metrics": {
-    "candidate_matches": 1234,
-    "inlier_matches": 987,
-    "inlier_ratio": 0.800,
-    "reprojection_rmse_px": 0.62,
-    "median_error_px": 0.45,
-    "max_error_px": 2.31,
-    "mean_displacement_px": 0.12,
-    "spatial_uniformity": {
-      "grid_occupancy_pct": 93.75,
-      "convex_hull_coverage_pct": 87.2,
-      "min_point_separation_px": 15.4
-    }
-  },
-  "registered_image_url": "/api/v1/files/job-uuid/registered.png",
-  "overlay_image_url": "/api/v1/files/job-uuid/overlay.png",
-  "checkerboard_image_url": "/api/v1/files/job-uuid/checkerboard.png",
-  "correspondence_csv_url": "/api/v1/files/job-uuid/correspondence_points.csv",
-  "error": null
-}
-```
-
-**Response (Failed):**
-```json
-{
-  "job_id": "job-uuid",
-  "status": "failed",
-  "metrics": null,
-  "registered_image_url": null,
-  "overlay_image_url": null,
-  "checkerboard_image_url": null,
-  "correspondence_csv_url": null,
-  "error": "Insufficient inliers found"
-}
-```
-
-**Status Codes:**
-- `200 OK` - Job completed (check `status` field)
-- `400 Bad Request` - Job not ready (still processing)
-- `404 Not Found` - Job does not exist
-
----
-
-### Get Result File
-
-#### GET /files/{job_id}/{filename}
-
-Download a specific result file.
-
-**Parameters:**
-- `job_id` (path, string) - UUID of the job
-- `filename` (path, string) - File to download
-  - `registered.png`
-  - `overlay.png`
-  - `checkerboard.png`
-  - `correspondence_points.csv`
-  - `metrics.json`
-
-**Example:**
-```bash
-curl http://localhost:8000/api/v1/files/job-uuid/registered.png \
-  --output registered.png
-```
-
-**Response:** Binary file content
-
-**Status Codes:**
-- `200 OK` - File found
-- `404 Not Found` - File does not exist
-
----
-
-## Error Responses
-
-All error responses follow this format:
+`POST /register` body:
 
 ```json
-{
-  "detail": "Human-readable error message"
-}
+{"source_image_id":"uploaded-or-raw-id","reference_image_id":"other-id","matcher":"ensemble","features":"aliked","model":"affine","source_bounds":[0,0,1024,1024],"reference_bounds":[0,0,1024,1024],"source_scale_xy":[1,1]}
 ```
 
-**Common Error Codes:**
-- `400 Bad Request` - Invalid request parameters
-- `404 Not Found` - Resource not found
-- `413 Payload Too Large` - Upload exceeds size limit
-- `500 Internal Server Error` - Server-side error
+Those numbers illustrate the API syntax, not evaluation imagery or a demonstrated overlap. Bounds are exclusive native XY integers, inside product dimensions, at most 32 million pixels per window. Scale divisors must be positive finite values. Matcher: ensemble/lightglue/rift2; features: aliked/disk/sift; transform: affine/similarity/homography. No silent crop or quality-threshold override is exposed.
 
----
+States: pending → processing → completed/failed/cancelled. `completed` can contain `quality_decision: REJECT`. Never infer success from HTTP 200 or completion alone. Progress reports stage boundaries, not estimated completion time.
 
-## Rate Limiting
+Visualization points use original zero-based pixel centers (x column, y row), preserving CSV precision. The matrix maps original source→original reference pixels; quicklooks need processing-frame conversion. `confidence` is a model/ranking score, not a calibrated accuracy probability. Missing independent controls yield `status: unavailable` and null independent RMSE.
 
-Currently no rate limiting is implemented. For production, recommend:
-- 100 requests/minute per IP for uploads
-- 1000 requests/minute per IP for status polling
-
----
-
-## CORS
-
-CORS is configured for:
-- `http://localhost:5173` (Vite dev server)
-- `http://localhost:3000` (Alternative frontend port)
-
-Update `backend/app/config.py` to add additional origins.
-
----
-
-## Future Endpoints (Planned)
-
-### Authentication
-- `POST /auth/login` - User login
-- `POST /auth/register` - User registration
-- `POST /auth/logout` - User logout
-
-### User Management
-- `GET /users/me` - Get current user
-- `GET /users/me/jobs` - List user's jobs
-
-### Advanced Features
-- `WS /jobs/{job_id}/stream` - WebSocket for real-time progress
-- `DELETE /jobs/{job_id}` - Cancel a running job
-- `POST /register/batch` - Batch registration jobs
+The UI uses authenticated blobs for images and downloads. Examples for all endpoints and cancellation are in [COMMANDS.md](../../COMMANDS.md). Deploy one API worker for the single-host SQLite/GPU ownership model.

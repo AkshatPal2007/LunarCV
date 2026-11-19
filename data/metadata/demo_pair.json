@@ -1,0 +1,29 @@
+{
+  "pair_id": "ohrc-lro-nac-m1350459544re-development",
+  "dataset_split": "development",
+  "source": "data/raw/tmc2/baseline/data/calibrated/20210401/ch2_ohr_ncp_20210401T2357376656_d_img_d18.img",
+  "reference": "data/raw/lro/M1350459544RE.IMG",
+  "source_bounds": [
+    800,
+    82500,
+    5800,
+    88500
+  ],
+  "reference_bounds": [
+    1050,
+    13300,
+    1950,
+    14600
+  ],
+  "source_scale_xy": [
+    5.961538461538462,
+    6.384615384615384
+  ],
+  "source_sensor": "Chandrayaan-2 OHRC",
+  "reference_sensor": "LRO NAC",
+  "source_geometry": "data/raw/tmc2/baseline/geometry/calibrated/20210401/ch2_ohr_ncp_20210401T2357376656_g_grd_d18.csv",
+  "prior_description": "Legacy manually localized real-image search windows; GSD ratios from existing metadata; not ground truth or geographic validation. LRO EDR label has no geolocation grid.",
+  "ground_truth_status": "not_available",
+  "source_catalog": "https://chmapbrowse.issdc.gov.in/",
+  "reference_catalog": "https://wms.lroc.asu.edu/lroc/search"
+}

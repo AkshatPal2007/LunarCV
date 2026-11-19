@@ -1,0 +1,19 @@
+name: Backend contracts
+on: [push, pull_request]
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install uv==0.13.7
+      - run: sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0
+      - run: uv sync --frozen
+        working-directory: backend
+      - run: uv run --frozen ruff check .
+        working-directory: backend
+      - run: uv run --frozen pytest tests ../tests -q
+        working-directory: backend
+# Scientific regression uses locally acquired real mission data; unit tests make no accuracy claims.

@@ -1,5 +1,5 @@
-from geo_prior import compute_overlap, estimate_scale_ratio, generate_tiles
-from metadata import BoundingBox, ImageMetadata
+from lunarcv.geo.geo_prior import compute_overlap, estimate_scale_ratio, generate_tiles
+from lunarcv.geo.metadata import BoundingBox, ImageMetadata
 
 
 def test_compute_overlap():

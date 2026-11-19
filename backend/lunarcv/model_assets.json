@@ -1,0 +1,13 @@
+{
+  "aliked": {
+    "aliked-n16.pth": "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2",
+    "aliked_lightglue_v0-1_arxiv.pth": "d975e965b105311a6143194852297dff4f02aea5cc2e10cecfed966ca0e22503"
+  },
+  "disk": {
+    "depth-save.pth": "9c2ee4ded238892dfa51569941372601e35e4a74aa6f84ea80053d2ab1c07abe",
+    "disk_lightglue_v0-1_arxiv.pth": "b5b21d47ea24f2c5e501aec9c91b9716e4c8c3429a4dc1e615c133c4c9378335"
+  },
+  "sift": {
+    "sift_lightglue_v0-1_arxiv.pth": "5b52b8d9982d43532dc042606b346bb9594c9f5a4bd6f64362c63866287b4ac0"
+  }
+}

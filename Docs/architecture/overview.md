@@ -1,184 +1,30 @@
-# System Architecture Overview
+# Implemented architecture
 
-LunarCV is a multi-modal lunar image registration system with a FastAPI backend and React frontend.
-
-## High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Frontend                             │
-│                      (React + Vite)                          │
-│                                                              │
-│  ┌────────────┐  ┌──────────────┐  ┌──────────────────┐   │
-│  │   Upload   │  │ Registration │  │  Visualization   │   │
-│  │   UI       │  │   Dashboard  │  │   Components     │   │
-│  └────────────┘  └──────────────┘  └──────────────────┘   │
-│                          │                                   │
-│                    API Client (Axios)                       │
-└──────────────────────────┼──────────────────────────────────┘
-                           │ HTTP/REST
-                           │
-┌──────────────────────────┼──────────────────────────────────┐
-│                   Backend (FastAPI)                          │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │             API Routes Layer                          │  │
-│  │  /upload  /register  /jobs/{id}  /jobs/{id}/results │  │
-│  └─────────────────────┼────────────────────────────────┘  │
-│                        │                                     │
-│  ┌─────────────────────┼────────────────────────────────┐  │
-│  │          Services Layer                              │  │
-│  │  ┌─────────────────────────────────────────────┐    │  │
-│  │  │  registration_service.py                    │    │  │
-│  │  │  - Job orchestration                        │    │  │
-│  │  │  - Background task management               │    │  │
-│  │  │  - Progress tracking                        │    │  │
-│  │  └─────────────────┼───────────────────────────┘    │  │
-│  └────────────────────┼──────────────────────────────────┘  │
-│                       │                                      │
-│  ┌────────────────────┼──────────────────────────────────┐ │
-│  │         lunarcv Package (CV Pipeline)               │ │
-│  │                                                       │ │
-│  │  ┌────────────┐  ┌──────────────┐  ┌─────────────┐ │ │
-│  │  │   I/O      │  │  Matching    │  │Registration │ │ │
-│  │  │  - Raster  │→ │  - LightGlue │→ │  - MAGSAC++ │ │ │
-│  │  │  - Memmap  │  │  - LoFTR     │  │  - Subpixel │ │ │
-│  │  └────────────┘  │  - RIFT2     │  │  - Transform│ │ │
-│  │                  └──────────────┘  └─────────────┘ │ │
-│  └─────────────────────────────────────────────────────┘ │
-└──────────────────────────┼──────────────────────────────────┘
-                           │
-                    ┌──────┴──────┐
-                    │             │
-            ┌───────▼──────┐ ┌───▼──────┐
-            │   Uploads    │ │ Results  │
-            │   Storage    │ │ Storage  │
-            └──────────────┘ └──────────┘
+```mermaid
+flowchart TD
+    UI[React / TypeScript scientific workspace] --> API[FastAPI contracts and shared operator authentication]
+    API --> DB[SQLite durable bounded job queue]
+    DB --> WORKER[One spawned compute worker / pretrained model reuse]
+    CLI[CLI real-file inputs] --> ENGINE[RegistrationEngine]
+    WORKER --> ENGINE
+    ENGINE --> IO[Bounded raster / PDS windows and labels]
+    IO --> PRIOR[Georeferenced overlap if compatible; otherwise explicit search windows]
+    PRIOR --> MATCH[Minimal normalization / LightGlue and RIFT2]
+    MATCH --> ROBUST[Robust geometry then grid selection]
+    ROBUST --> REFINE[Paired refinement then final fit]
+    REFINE --> PRODUCTS[Native TIFF / CSV / mapping / metrics / hash manifest]
+    PRODUCTS --> API
+    API --> UI
 ```
 
-## Component Breakdown
+The current default is ALIKED/LightGlue + parallel coarse RIFT2, affine MAGSAC++, 4×4 spatial selection and conservative bidirectional correlation refinement. Empty coarse RIFT2 results skip secondary guided-tile repeats within that run. Similarity uses RANSAC; affine/homography use MAGSAC++. There is no implemented LoFTR/OmniGlue/DINOv2 production path or TPS fallback.
 
-### Frontend (React + Vite)
-- **Purpose**: User interface for image upload and registration visualization
-- **Tech Stack**: React 19, Vite, Tailwind CSS v4, Framer Motion
-- **Key Features**:
-  - Drag-and-drop image upload
-  - Real-time job progress tracking
-  - Interactive result visualization (overlays, checkerboards, match points)
-  - Geographic footprint mapping
+The current raw OHRC/LRO pair uses explicit legacy windows and nominal GSD divisors. Its LRO EDR lacks geographic mapping; this path does not claim whole-scene geographic accuracy. Compatible projected rasters can derive overlap/GSD from declared CRS/affines. Camera-model/orbit reprojection across arbitrary mission products remains pending.
 
-### Backend (FastAPI)
-- **Purpose**: REST API and CV pipeline orchestration
-- **Tech Stack**: FastAPI, Uvicorn, Pydantic
-- **Layers**:
-  1. **API Routes** - HTTP endpoint handlers
-  2. **Schemas** - Request/response validation (Pydantic)
-  3. **Services** - Business logic and job management
-  4. **lunarcv Package** - Core CV algorithms
+`transform.json` records native source→native reference and both processing→native frames, actual shapes, crop bounds, zero-based pixel centers and output georeferencing status. Science TIFF retains native radiometry; PNGs are normalized quicklooks. `support_mask.png` is a fit-point convex hull, not an uncertainty map. `candidates.npz` retains outliers as evidence. `manifest.json` is written last with artifact hashes.
 
-### CV Pipeline (lunarcv)
-Pure Python computer vision library implementing the registration pipeline:
+A completed job means execution completed, not that the quality gate passed. The current scene is REJECT. Fit RMSE and external-control accuracy are separate fields. External controls never fit the transform. Cache identities include input, code, settings and pinned weights.
 
-1. **I/O Module** (`lunarcv.io`)
-   - Zero-copy memory-mapped loading for large orbital imagery
-   - PDS3/PDS4 format support
-   - Patch extraction
+Operational scope: one API process, one spawned compute process, bounded outstanding jobs, local SQLite/storage and shared operator key. Cancellation/time limits are stage-boundary checks. No multi-tenant authorization, hard native-call watchdog, automatic retention, distributed GPU scheduler, or validated multi-host deployment is claimed.
 
-2. **Preprocessing** (`lunarcv.preprocessing`)
-   - Percentile-based normalization
-   - CLAHE (optional)
-
-3. **Matching** (`lunarcv.matching`)
-   - **LightGlue** - Primary matcher (SuperPoint + LightGlue)
-   - **LoFTR** - Dense transformer-based matching
-   - **RIFT2** - Phase congruency matcher (illumination-invariant)
-
-4. **Registration** (`lunarcv.registration`)
-   - **Outlier Rejection** - MAGSAC++ geometric filtering
-   - **Spatial Uniformity** - Grid-based distribution analysis
-   - **Sub-pixel Refinement** - cornerSubPix + Lucas-Kanade
-   - **Transform Estimation** - Homography/Affine/TPS fitting
-
-## Data Flow
-
-### Registration Job Lifecycle
-
-```
-1. Upload Images
-   POST /api/v1/upload (source)
-   POST /api/v1/upload (reference)
-   ↓
-2. Create Job
-   POST /api/v1/register
-   {source_image_id, reference_image_id, matcher}
-   ↓
-3. Background Processing
-   - Load images (cv2.imread or memmap)
-   - Normalize (percentile stretch)
-   - Feature matching (LightGlue/LoFTR/RIFT2)
-   - Outlier rejection (MAGSAC++)
-   - Sub-pixel refinement
-   - Transform estimation
-   - Generate outputs (registered image, overlay, metrics)
-   ↓
-4. Poll Status
-   GET /api/v1/jobs/{job_id}
-   {status: "processing", progress: 75}
-   ↓
-5. Retrieve Results
-   GET /api/v1/jobs/{job_id}/results
-   {metrics, registered_image_url, overlay_image_url, ...}
-```
-
-## Storage Architecture
-
-### Uploads Directory (`data/uploads/`)
-- User-uploaded source and reference images
-- Files named by UUID
-- Original filenames preserved in metadata
-
-### Results Directory (`data/results/{job_id}/`)
-Per-job outputs:
-- `registered.png` - Warped reference image aligned to source
-- `overlay.png` - 50/50 alpha blend of registered pair
-- `checkerboard.png` - Checkerboard composite for visual QA
-- `correspondence_points.csv` - Match coordinates (source_x, source_y, reference_x, reference_y)
-- `metrics.json` - Evaluation metrics (RMSE, inlier ratio, spatial uniformity)
-
-## Scalability Considerations
-
-### Current Implementation (MVP)
-- **Job Store**: In-memory dictionary (ephemeral)
-- **Storage**: Local filesystem
-- **Concurrency**: FastAPI background tasks (single worker)
-
-### Production Recommendations
-- **Job Store**: Redis or PostgreSQL for persistence
-- **Task Queue**: Celery + Redis for distributed processing
-- **Storage**: S3/MinIO for large imagery
-- **Caching**: Redis for frequently-accessed results
-- **Load Balancing**: Nginx reverse proxy + multiple Uvicorn workers
-
-## Security Notes
-
-- File uploads are validated by extension and size
-- No authentication implemented yet (add OAuth2/JWT for production)
-- CORS configured for localhost development (restrict in production)
-- Job results are publicly accessible by job_id (add user ownership in production)
-
-## Technology Choices
-
-| Component | Technology | Reasoning |
-|-----------|-----------|-----------|
-| Backend Framework | FastAPI | Fast, async, automatic OpenAPI docs, Pydantic validation |
-| CV Library | OpenCV + PyTorch | Industry standard, GPU support, extensive algorithms |
-| Feature Matcher | LightGlue | SOTA accuracy, faster than SuperGlue, MIT license |
-| Frontend Framework | React 19 | Modern, component-based, large ecosystem |
-| Build Tool | Vite | Fast HMR, optimized builds, ESM native |
-| Containerization | Docker | Reproducible environments, easy deployment |
-
-## Next Steps
-
-- [Backend Architecture Details](backend.md)
-- [CV Pipeline Deep Dive](cv-pipeline.md)
-- [Frontend Architecture](frontend.md)
+Legacy modules remain for compatibility, but the supported API and CLI execution path is the shared engine. Historical showcase/configuration endpoints are deprecated and labeled unvalidated processing-coordinate data.

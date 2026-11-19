@@ -1,39 +1,17 @@
-# Frozen Evaluation Protocol
+LunarCV evaluation protocol — development-v2
 
-The canonical evaluation contract is [data/metadata/evaluation_manifest.json](../data/metadata/evaluation_manifest.json).
+The available OHRC/LRO scene is development data because it has been used repeatedly to implement and compare presets. Historical priority-0-v1 outputs remain historical; reclassification does not create a new test set.
 
-## Rules
+The shared engine fits only matcher-derived candidates. It applies geometric rejection, spatial selection, paired refinement and one final selected model. It exports the exact refined native coordinates used for that fit. No repeated residual-threshold sweep is used to select a flattering final subset.
 
-- Evaluation pairs are split at the complete-scene level. Crops from one scene are not independent samples.
-- The manifest is versioned and records sensor, product ID, image shape, GSD, footprint, and source paths.
-- Every result records SHA-256 hashes of both input files, the matcher, parameters, protocol version, and dataset split.
-- API uploads that are not explicitly registered in the manifest are labeled `unregistered` and must not be included in benchmark tables.
-- A transform-fit residual is diagnostic only. It is not an accuracy claim.
-- The pipeline deterministically holds out 20% of the raw correspondence set before MAGSAC++, fits a robust homography only on the remaining points, and scores only the held-out raw candidates.
-- Held-out scoring requires at least 4 fit points and 2 held-out points. Smaller results are marked `insufficient_points_for_holdout` and cannot pass the quality gate.
-- `independent_control_point_rmse_px` remains unavailable until a separate crater/control-point set is created.
-- Ground-truth status is explicit. The current OHRC/LRO entry is `not_available`, so the project must not claim independently verified sub-pixel accuracy.
+Fit RMSE, median and p95 are diagnostics in native reference pixels. The legacy evaluate_homography_holdout helper measures held-out raw candidate consistency; production quality does not treat it as independent accuracy. Independent accuracy remains unavailable until external controls are supplied. The engine never automatically claims sub-pixel accuracy.
 
-## Required Result Fields
+External controls are supplied through --controls controls.json. The JSON must declare coordinate_frame=native_pixels, independent_of_matching=true, method, provenance, uncertainty_reference_px, and at least six points with source:[x,y] and reference:[x,y]. Controls are scored only after fitting; near-duplicates of fit locations are refused. Declaring independence is a provenance assertion that requires review, not a guarantee provided by the JSON format.
 
-```json
-{
-  "evaluation": {
-    "manifest_version": "1.0",
-    "protocol_version": "priority-0-v1",
-    "pair_id": "...",
-    "dataset_split": "test",
-    "source": {"sha256": "...", "shape": [0, 0]},
-    "reference": {"sha256": "...", "shape": [0, 0]},
-    "matcher": "...",
-    "parameters": {},
-    "ground_truth": {"method": "...", "status": "..."}
-  },
-  "fit_reprojection_rmse_px": 0.0,
-  "heldout_rmse_forward_px": 0.0,
-  "heldout_rmse_backward_px": 0.0,
-  "evaluation_status": "heldout_valid"
-}
-```
+Freeze complete-scene development/test splits and thresholds before evaluating new scenes. Group nearby duplicate observations before splitting. Select controls using a predefined method independent of final errors, and report uncertainty. Include failed/no-match scenes. Do not compare fit residuals or raw-candidate holdout with the paper's accuracy numbers as equivalent measurements.
 
-The current `fit_*` values are retained for debugging and regression tracking. They must not be compared with published independent RMSE values as if they measured the same thing.
+The current geometric thresholds are provisional engineering guards: at least 12 selected matches, at least 50% grid occupancy and 20% convex hull coverage in both entire processing windows, CV no greater than 1.5, and fit RMSE no greater than 2 native reference pixels. These thresholds are versioned in RegistrationConfig. They are not validated scientific acceptance criteria. Empty and non-overlap cells are not silently excluded to improve coverage.
+
+Every completed run records native transform direction, crop and scale matrices including pixel-center offsets, complete original shapes, input/label/model/code/config identities, all candidates and their geometric status, selected/refined points, independent-check availability, stage timings and resource measurements. manifest.json publishes hashes of completed artifacts. Use backend/scripts/inspect_mapping.py to verify hashes and recompute residuals without fitting.
+
+A REJECT outcome is preserved as a valid experiment result. GEOMETRICALLY_USABLE_ACCURACY_UNVALIDATED indicates only that provisional geometry checks passed; it is not a registration-accuracy certificate.

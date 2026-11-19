@@ -1,4 +1,4 @@
-from metadata import BoundingBox, ImageMetadata
+from lunarcv.geo.metadata import BoundingBox, ImageMetadata
 
 
 def test_bounding_box_intersection():
